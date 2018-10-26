@@ -30,23 +30,25 @@ func (x *readWriteCloser) initRead() {
 	var w *io.PipeWriter
 	x.r, w = io.Pipe()
 	go func() {
-		var err error
+		defer func() {
+			_ = w.Close()
+		}()
+
 		var b16 []byte
-
-		for err == nil && x.error() == nil {
+		for x.error() == nil {
 			b1 := []byte{0}
-			if _, err = x.conn.Read(b1); err == nil {
+			if _, err := x.conn.Read(b1); err == nil {
 				b16 = append(b16, b1...)
+				continue
 			}
-		}
-
-		var b []byte
-		b, err = goutils.UTF8FromUTF16(b16)
-		if err == nil {
+			b, err := goutils.UTF8FromUTF16(b16)
+			if err != nil {
+				panic(err)
+			}
 			_, err = w.Write(b)
+			x.setError(err)
+			return
 		}
-		x.setError(err)
-		_ = w.Close()
 	}()
 }
 
@@ -54,13 +56,17 @@ func (x *readWriteCloser) initWrite() {
 	var r *io.PipeReader
 	r, x.w = io.Pipe()
 	go func() {
+		defer func() {
+			_ = r.Close()
+		}()
+
 		dec := json.NewDecoder(r)
 		var b json.RawMessage
-		err := dec.Decode(&b)
-		var err error
-		for ; err == nil && x.error() == nil; err = dec.Decode(&b) {
+
+		for err := dec.Decode(&b); err == nil && x.error() == nil; err = dec.Decode(&b) {
 			b16 := goutils.UTF16FromString(string(b))
-			_, x.err = x.conn.Write(b16)
+			_, err = x.conn.Write(b16)
+			x.setError(err)
 		}
 		_ = r.Close()
 	}()
@@ -82,15 +88,15 @@ func (x *readWriteCloser) setError(err error) {
 }
 
 func (x *readWriteCloser) Write(p []byte) (int, error) {
-	if x.err != nil {
-		return 0, x.err
+	if x.error() != nil {
+		return 0, x.error()
 	}
 	return x.w.Write(p)
 }
 
 func (x *readWriteCloser) Read(p []byte) (int, error) {
-	if x.err != nil {
-		return 0, x.err
+	if x.error() != nil {
+		return 0, x.error()
 	}
 	return x.r.Read(p)
 }
