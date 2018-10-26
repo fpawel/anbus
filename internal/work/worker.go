@@ -1,21 +1,19 @@
 package work
 
 import (
-	"github.com/fpawel/goutils/serial/comport"
+	"github.com/fpawel/anbus/internal/anbus"
 	"github.com/fpawel/anbus/internal/data"
 	"github.com/fpawel/anbus/internal/notify"
-	"github.com/fpawel/anbus/internal/panalib"
 	"github.com/fpawel/anbus/internal/settings"
+	"github.com/fpawel/goutils/serial/comport"
 	"net"
 	"strconv"
-	"sync"
 )
 
 type worker struct {
 	window          *notify.Window
 	comport         *comport.Port
-	config          panalib.Config
-	muConfig        sync.Mutex
+	sets            *anbus.Sets
 	flagClose       bool
 	series          *data.Series
 	chModbusRequest chan modbusRequest
@@ -28,11 +26,11 @@ func (x *worker) initPeer() {
 		return
 	}
 
-	config := x.safeGetConfig()
+	cfg := x.sets.Config()
 
 	x.window.SendMsgJSON(notify.MsgUserConfig, settings.Config{
 		Sections: []settings.Section{
-			settings.Comport("comport", "СОМ порт", config.Comport),
+			settings.Comport("comport", "СОМ порт", cfg.Comport),
 			{
 				Name: "chart",
 				Hint: "Графики",
@@ -43,7 +41,7 @@ func (x *worker) initPeer() {
 						DefaultValue: "0",
 						ValueType:    settings.VtInt,
 						Min:          &settings.ValueEx{Value: 0},
-						Value:        strconv.Itoa(x.config.SaveMin),
+						Value:        strconv.Itoa(cfg.SaveMin),
 					},
 				},
 			},
@@ -51,16 +49,10 @@ func (x *worker) initPeer() {
 	})
 
 	x.window.SendMsgJSON(notify.MsgNetwork, struct {
-		Places []panalib.Place
-		Vars   []panalib.Var
+		Places []anbus.Place
+		Vars   []anbus.Var
 	}{
-		config.Places,
-		config.Vars,
+		cfg.Places,
+		cfg.Vars,
 	})
-}
-
-func (x *worker) safeGetConfig() panalib.Config {
-	x.muConfig.Lock()
-	defer x.muConfig.Unlock()
-	return x.config
 }

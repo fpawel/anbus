@@ -1,4 +1,4 @@
-package panalib
+package anbus
 
 import "github.com/fpawel/goutils/winapp"
 

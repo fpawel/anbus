@@ -3,9 +3,9 @@ package work
 import (
 	"errors"
 	"fmt"
-	"github.com/fpawel/goutils/serial/modbus"
+	"github.com/fpawel/anbus/internal/anbus"
 	"github.com/fpawel/anbus/internal/notify"
-	"github.com/fpawel/anbus/internal/panalib"
+	"github.com/fpawel/goutils/serial/modbus"
 	"time"
 )
 
@@ -16,21 +16,21 @@ type modbusRequest struct {
 }
 
 func (x *worker) mainWork() {
-	var va panalib.VarAddr
+	var va anbus.VarAddr
 	for !x.flagClose {
-		cfg := x.safeGetConfig()
+		sets := x.sets.Config()
 		select {
 		case r := <-x.chModbusRequest:
 			x.window.SendConsoleInfo(r.source)
-			if x.prepareComport(cfg) {
-				x.doModbus(r, cfg)
+			if x.prepareComport(sets) {
+				x.doModbus(r, sets)
 				continue
 			}
 		default:
-			va = cfg.NextVarAddr(va)
-			if va.Place >= 0 && x.prepareComport(cfg) {
+			va = sets.NextVarAddr(va)
+			if va.Place >= 0 && x.prepareComport(sets) {
 				if v, ok := x.doReadVar(va); ok {
-					x.series.AddRecord(va.Addr, va.Var, v, time.Minute*time.Duration(cfg.SaveMin))
+					x.series.AddRecord(va.Addr, va.Var, v, time.Minute*time.Duration(sets.SaveMin))
 				}
 				continue
 			}
@@ -39,21 +39,21 @@ func (x *worker) mainWork() {
 	}
 }
 
-func (x *worker) prepareComport(cfg panalib.Config) bool {
+func (x *worker) prepareComport(sets anbus.Config) bool {
 
 	comportConfig := x.comport.Config()
 
-	if comportConfig.Uart != cfg.Comport.Uart {
-		x.comport.SetUartConfig(cfg.Comport.Uart)
+	if comportConfig.Uart != sets.Comport.Uart {
+		x.comport.SetUartConfig(sets.Comport.Uart)
 	}
-	if comportConfig.Serial != cfg.Comport.Serial {
+	if comportConfig.Serial != sets.Comport.Serial {
 		if err := x.comport.Close(); err != nil {
 			fmt.Println("close COMPORT error:", err)
 		}
 	}
 
 	if !x.comport.Opened() {
-		if err := x.comport.OpenWithConfig(cfg.Comport); err != nil {
+		if err := x.comport.OpenWithConfig(sets.Comport); err != nil {
 			x.window.SendStatusError("%v", err)
 			return false
 		}
@@ -70,10 +70,10 @@ func (x *worker) doModbusAddr(r modbusRequest) {
 	}
 }
 
-func (x *worker) doModbus(r modbusRequest, cfg panalib.Config) {
+func (x *worker) doModbus(r modbusRequest, sets anbus.Config) {
 
 	if r.all {
-		for _, p := range cfg.Places {
+		for _, p := range sets.Places {
 			if !p.Unchecked {
 				r.Addr = p.Addr
 				x.doModbusAddr(r)
@@ -95,7 +95,7 @@ func (x *worker) doModbus(r modbusRequest, cfg panalib.Config) {
 
 }
 
-func (x *worker) doReadVar(va panalib.VarAddr) (float64, bool) {
+func (x *worker) doReadVar(va anbus.VarAddr) (float64, bool) {
 
 	value, err := modbus.Read3BCD(x.comport, va.Addr, va.Var)
 	if err != nil {

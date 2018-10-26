@@ -17,7 +17,7 @@ type Window struct {
 
 func NewWindow(windowProcedure winapp.WindowProcedure) *Window {
 	w := &Window{
-		hWnd: winapp.NewWindowWithClassName("PanalibHostAppWindowClass", windowProcedure),
+		hWnd: winapp.NewWindowWithClassName("AnbusServerAppWindow", windowProcedure),
 	}
 	w.FindPeerWindow()
 	return w
@@ -35,7 +35,7 @@ func (x *Window) CheckPeerWindow() bool {
 }
 
 func (x *Window) FindPeerWindow() {
-	ptrClassName := goutils.MustUTF16PtrFromString("TPanalibuiMainForm")
+	ptrClassName := goutils.MustUTF16PtrFromString("TAnbusMainForm")
 	x.hWndPeer = win.FindWindow(ptrClassName, nil)
 }
 

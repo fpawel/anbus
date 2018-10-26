@@ -3,31 +3,34 @@ package work
 import (
 	"fmt"
 	"github.com/Microsoft/go-winio"
-	"github.com/fpawel/goutils/serial/comport"
+	"github.com/fpawel/anbus/internal/anbus"
 	"github.com/fpawel/anbus/internal/data"
 	"github.com/fpawel/anbus/internal/notify"
-	"github.com/fpawel/anbus/internal/panalib"
+	"github.com/fpawel/anbus/internal/svc"
+	"github.com/fpawel/goutils/serial/comport"
 	"github.com/lxn/win"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"net"
+	"net/rpc"
 	"sync"
 )
 
+const PipeName = `\\.\pipe\anbus`
+
 func Main() {
-	cfg, errCfg := panalib.OpenConfig()
-	if errCfg != nil {
-		fmt.Println(errCfg)
-		cfg = panalib.DefaultConfig()
-	}
 	x := &worker{
-		config:          cfg,
+		sets:            openConfig(),
 		chModbusRequest: make(chan modbusRequest, 10),
 		series:          data.NewSeries(),
-		comport:         comport.NewPortWithConfig(cfg.Comport),
 		ln:              mustPipeListener(),
 	}
+	x.comport = comport.NewPortWithConfig(x.sets.Config().Comport)
 	x.window = notify.NewWindow(x.onCommand)
 	x.initPeer()
+
+	if err := rpc.Register(svc.NewSetsSvc(x.sets)); err != nil {
+		panic(err)
+	}
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -75,17 +78,18 @@ func Main() {
 	if err := x.series.Close(); err != nil {
 		fmt.Println("close series error:", err)
 	}
-	if err := panalib.SaveConfig(x.config); err != nil {
-		fmt.Println("save config error:", err)
+	if err := x.sets.Save(); err != nil {
+		fmt.Println("save sets error:", err)
 	}
 	if err := x.comport.Close(); err != nil {
 		fmt.Println("close comport error:", err)
 	}
+
 }
 
 func mustPipeListener() net.Listener {
 
-	ln, err := winio.ListenPipe(`\\.\pipe\panalib`, nil)
+	ln, err := winio.ListenPipe(PipeName, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -98,4 +102,12 @@ func fmtErr(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+func openConfig() *anbus.Sets {
+	cfg, errCfg := anbus.OpenSets()
+	if errCfg != nil {
+		fmt.Println("sets:", errCfg)
+	}
+	return cfg
 }

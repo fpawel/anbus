@@ -2,15 +2,13 @@ package work
 
 import (
 	"encoding/json"
-	"github.com/fpawel/anbus/internal/settings"
-	"time"
+	"fmt"
 )
 
 type CommandDataPeer uintptr
 
 const (
-	cdpSetsProperty CommandDataPeer = iota
-	cdpPerformTextCommand
+	cdpPerformTextCommand CommandDataPeer = iota
 )
 
 func (x *worker) onCopyData(cmd CommandDataPeer, data []byte) {
@@ -24,7 +22,9 @@ func (x *worker) onCopyData(cmd CommandDataPeer, data []byte) {
 			return
 		}
 		if c.name == "EXIT" {
-			x.window.Close()
+			if err := x.window.Close(); err != nil {
+				fmt.Println("close window: unexpected error:", err)
+			}
 			return
 		}
 
@@ -33,36 +33,6 @@ func (x *worker) onCopyData(cmd CommandDataPeer, data []byte) {
 		} else {
 			x.window.SendConsoleError("%s: %v", string(data), err.Error())
 			return
-		}
-
-	case cdpSetsProperty:
-
-		x.muConfig.Lock()
-		defer x.muConfig.Unlock()
-
-		var p settings.PropertyValue
-		mustUnmarshalJSON(data, &p)
-
-		switch p.Section {
-		case "comport":
-			switch p.Name {
-			case "name":
-				x.config.Comport.Serial.Name = p.Value
-			case "baud":
-				x.config.Comport.Serial.Baud = p.MustInt()
-			case "timeout":
-				x.config.Comport.Uart.ReadTimeout = time.Millisecond * p.MustDuration()
-			case "timeout_byte":
-				x.config.Comport.Uart.ReadTimeout = time.Millisecond * p.MustDuration()
-			case "max_attempts_read":
-				x.config.Comport.Uart.MaxAttemptsRead = p.MustInt()
-			}
-		case "chart":
-			switch p.Name {
-			case "save_min":
-				x.config.SaveMin = p.MustInt()
-
-			}
 		}
 	}
 }
