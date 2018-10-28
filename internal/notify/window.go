@@ -40,6 +40,9 @@ func (x *Window) FindPeerWindow() {
 }
 
 func (x *Window) SendMsg(msg Msg, b []byte) {
+	if !winapp.IsWindow(x.hWndPeer) {
+		x.FindPeerWindow()
+	}
 	if winapp.IsWindow(x.hWndPeer) && copydata.SendMessage(x.hWnd, x.hWndPeer, uintptr(msg), b) == 0 {
 		x.hWndPeer = 0
 	}

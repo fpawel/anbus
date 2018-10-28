@@ -3,9 +3,7 @@ package notify
 type Msg uintptr
 
 const (
-	MsgUserConfig Msg = iota
-	MsgNetwork
-	msgStatusText
+	msgStatusText Msg = iota
 	msgConsoleText
 	MsgReadVar
 )

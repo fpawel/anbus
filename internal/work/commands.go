@@ -7,17 +7,9 @@ import (
 	"unsafe"
 )
 
-const (
-	cmdPeer = iota + win.WM_USER
-)
-
 func (x *worker) onCommand(hWnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 
 	switch msg {
-
-	case cmdPeer:
-		x.initPeer()
-		return 1
 
 	case win.WM_COPYDATA:
 		cdMSG, b16 := copydata.GetData(unsafe.Pointer(lParam))

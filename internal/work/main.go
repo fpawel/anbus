@@ -26,7 +26,6 @@ func Main() {
 	}
 	x.comport = comport.NewPortWithConfig(x.sets.Config().Comport)
 	x.window = notify.NewWindow(x.onCommand)
-	x.initPeer()
 
 	if err := rpc.Register(svc.NewSetsSvc(x.sets)); err != nil {
 		panic(err)
@@ -111,3 +110,21 @@ func openConfig() *anbus.Sets {
 	}
 	return cfg
 }
+
+//type debugReadWriteCloser struct {
+//	conn net.Conn
+//}
+//
+//func (x *debugReadWriteCloser) Write(p []byte) (int, error) {
+//	n,err := x.conn.Write(p)
+//	return n,err
+//}
+//
+//func (x *debugReadWriteCloser) Read(p []byte) (int, error) {
+//	n,err := x.conn.Read(p)
+//	return n,err
+//}
+//
+//func (x *debugReadWriteCloser) Close() error {
+//	return x.conn.Close()
+//}

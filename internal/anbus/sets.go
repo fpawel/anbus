@@ -2,6 +2,7 @@ package anbus
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/fpawel/anbus/internal/settings"
 	"io/ioutil"
 	"strconv"
@@ -38,6 +39,9 @@ func (x *Sets) SetConfig(cfg Config) {
 	x.cfg = cfg
 	x.cfg.Vars = append([]Var{}, cfg.Vars...)
 	x.cfg.Places = append([]Place{}, cfg.Places...)
+	if err := x.save(); err != nil {
+		fmt.Println("Sets.SetConfig:", err)
+	}
 }
 
 func (x *Sets) Network() Network {
