@@ -20,7 +20,7 @@ const PipeName = `\\.\pipe\anbus`
 func Main() {
 	x := &worker{
 		sets:            openConfig(),
-		chModbusRequest: make(chan modbusRequest, 10),
+		chModbusRequest: make(chan request, 10),
 		series:          data.NewSeries(),
 		ln:              mustPipeListener(),
 	}
@@ -49,7 +49,7 @@ func Main() {
 	}()
 
 	go func() {
-		x.mainWork()
+		x.main()
 		wg.Done()
 	}()
 

@@ -9,13 +9,7 @@ import (
 	"time"
 )
 
-type modbusRequest struct {
-	modbus.Request
-	all    bool
-	source string
-}
-
-func (x *worker) mainWork() {
+func (x *worker) main() {
 	var va anbus.VarAddr
 	for !x.flagClose {
 		sets := x.sets.Config()
@@ -23,13 +17,13 @@ func (x *worker) mainWork() {
 		case r := <-x.chModbusRequest:
 			x.window.SendConsoleInfo(r.source)
 			if x.prepareComport(sets) {
-				x.doModbus(r, sets)
+				x.getResponse(r, sets)
 				continue
 			}
 		default:
 			va = sets.NextVarAddr(va)
 			if va.Place >= 0 && x.prepareComport(sets) {
-				if v, ok := x.doReadVar(va); ok {
+				if v, ok := x.doReadVar(va); ok && sets.SaveMin > 0 {
 					x.series.AddRecord(va.Addr, va.Var, v, time.Minute*time.Duration(sets.SaveMin))
 				}
 				continue
@@ -59,31 +53,30 @@ func (x *worker) prepareComport(sets anbus.Config) bool {
 		}
 	}
 	return true
-
 }
 
-func (x *worker) doModbusAddr(r modbusRequest) {
-	if _, err := x.comport.GetResponse(r.Bytes()); err == nil {
-		x.window.SendConsoleInfo(x.comport.Dump())
-	} else {
-		x.window.SendConsoleError(x.comport.Dump())
+func (x *worker) getResponse(r request, cfg anbus.Config) {
+
+	doAddr := func() {
+		if _, err := x.comport.GetResponse(r.Bytes()); err == nil {
+			x.window.SendConsoleInfo(x.comport.Dump())
+		} else {
+			x.window.SendConsoleError(x.comport.Dump())
+		}
 	}
-}
-
-func (x *worker) doModbus(r modbusRequest, sets anbus.Config) {
 
 	if r.all {
-		for _, p := range sets.Places {
+		for _, p := range cfg.Places {
 			if !p.Unchecked {
 				r.Addr = p.Addr
-				x.doModbusAddr(r)
+				doAddr()
 			}
 		}
 		return
 	}
 
 	if r.Addr > 0 {
-		x.doModbusAddr(r)
+		doAddr()
 		return
 	}
 

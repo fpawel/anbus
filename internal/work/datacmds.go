@@ -1,7 +1,6 @@
 package work
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -28,17 +27,11 @@ func (x *worker) onCopyData(cmd CommandDataPeer, data []byte) {
 			return
 		}
 
-		if r, err := c.parseModbusRequest(); err == nil {
+		if r, err := c.parseRequest(); err == nil {
 			x.chModbusRequest <- r
 		} else {
 			x.window.SendConsoleError("%s: %v", string(data), err.Error())
 			return
 		}
-	}
-}
-
-func mustUnmarshalJSON(data []byte, v interface{}) {
-	if err := json.Unmarshal(data, v); err != nil {
-		panic(err)
 	}
 }

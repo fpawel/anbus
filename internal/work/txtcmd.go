@@ -28,9 +28,9 @@ func parseTxtCmd(sourceStr string) (txtCmd, error) {
 	}, nil
 }
 
-func (x txtCmd) parseModbusRequest() (modbusRequest, error) {
+func (x txtCmd) parseRequest() (request, error) {
 
-	r := modbusRequest{
+	r := request{
 		source: x.source,
 	}
 	if x.name == "ALL" {

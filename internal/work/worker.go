@@ -14,6 +14,6 @@ type worker struct {
 	sets            *anbus.Sets
 	flagClose       bool
 	series          *data.Series
-	chModbusRequest chan modbusRequest
+	chModbusRequest chan request
 	ln              net.Listener
 }
