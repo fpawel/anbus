@@ -81,9 +81,9 @@ func (x *worker) getResponse(r request, cfg anbus.Config) {
 	}
 
 	if _, err := x.comport.Write(r.Bytes()); err != nil {
-		x.window.SendConsoleInfo(err.Error())
+		x.notifyConsoleInfo(err.Error())
 	} else {
-		x.window.SendConsoleInfo("< % X : широковещательное сообщение", r.Bytes())
+		x.notifyConsoleInfo("% X : BROADCAST", r.Bytes())
 	}
 
 }
@@ -102,6 +102,6 @@ func (x *worker) doReadVar(va anbus.VarAddr) (float64, bool) {
 	}{
 		va.Place, va.VarIndex, value, fmtErr(err),
 	}
-	x.window.SendMsgJSON(notify.MsgReadVar, &r)
+	x.rpcWnd.NotifyParam(msgReadVar, r)
 	return value, err == nil
 }

@@ -5,8 +5,8 @@ import (
 	"github.com/Microsoft/go-winio"
 	"github.com/fpawel/anbus/internal/anbus"
 	"github.com/fpawel/anbus/internal/data"
-	"github.com/fpawel/anbus/internal/notify"
 	"github.com/fpawel/anbus/internal/svc"
+	"github.com/fpawel/goutils/copydata"
 	"github.com/fpawel/goutils/serial/comport"
 	"github.com/lxn/win"
 	"github.com/powerman/rpc-codec/jsonrpc2"
@@ -23,9 +23,9 @@ func Main() {
 		chModbusRequest: make(chan request, 10),
 		series:          data.NewSeries(),
 		ln:              mustPipeListener(),
+		rpcWnd:          copydata.NewRPCWindow("AnbusServerAppWindow", "TAnbusMainForm"),
 	}
 	x.comport = comport.NewPortWithConfig(x.sets.Config().Comport)
-	x.window = notify.NewWindow(x.onCommand)
 
 	if err := rpc.Register(svc.NewSetsSvc(x.sets)); err != nil {
 		panic(err)
