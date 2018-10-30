@@ -10,14 +10,16 @@ import (
 )
 
 type Series struct {
-	db      *sqlx.DB
-	mu      sync.Mutex
-	records []Record
+	db                  *sqlx.DB
+	mu                  sync.Mutex
+	records             []Record
+	getSaveIntervalFunc func() time.Duration
 }
 
-func NewSeries() *Series {
+func NewSeries(getSaveIntervalFunc func() time.Duration) *Series {
 	return &Series{
-		db: mustOpenDB(),
+		db:                  mustOpenDB(),
+		getSaveIntervalFunc: getSaveIntervalFunc,
 	}
 }
 
@@ -25,17 +27,14 @@ func (x *Series) Close() error {
 	return x.db.Close()
 }
 
-//func (x *Series) last() Record {
-//	if len(x.records) > 0 {
-//		return x.records[len(x.records)-1]
-//	}
-//	return Record{}
-//}
+func (x *Series) AddRecord(addr modbus.Addr, v modbus.Var, value float64) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
 
-func (x *Series) AddRecord(addr modbus.Addr, v modbus.Var, value float64, saveInterval time.Duration) {
-	if len(x.records) > 0 && time.Since(x.records[0].CreatedAt) > saveInterval {
-		x.Upload(saveInterval)
+	if len(x.records) > 0 && time.Since(x.records[0].CreatedAt) > x.getSaveIntervalFunc() {
+		x.save()
 	}
+
 	x.records = append(x.records, Record{
 		CreatedAt:    time.Now(),
 		CreatedAtStr: time.Now().Format("2006-01-02 15:04:05"),
@@ -45,48 +44,42 @@ func (x *Series) AddRecord(addr modbus.Addr, v modbus.Var, value float64, saveIn
 	})
 }
 
-func (x *Series) lastBucket() (int64, time.Time) {
-	var xs []struct {
-		BucketID int64      `db:"bucket_id"`
-		Year     int        `db:"year"`
-		Month    time.Month `db:"month"`
-		Day      int        `db:"day"`
-		Hour     int        `db:"hour"`
-		Minute   int        `db:"minute"`
-		Second   int        `db:"second"`
-		StoredAt string     `db:"stored_at"`
-	}
-	dbutils.MustSelect(x.db, &xs, `SELECT * FROM last_value;`)
-	if len(xs) == 0 {
-		return 0, time.Time{}
-	}
-	a := xs[0]
-	return a.BucketID, time.Date(a.Year, a.Month, a.Day, a.Hour, a.Minute, a.Second, 0, time.UTC)
+func (x *Series) Save() {
+
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	x.save()
 }
 
-func (x *Series) Upload(saveInterval time.Duration) {
+func (x *Series) Buckets() *BucketsSvc {
+	return &BucketsSvc{
+		db: x.db,
+		mu: &x.mu,
+	}
+}
+
+func (x *Series) save() {
 	if len(x.records) == 0 {
 		return
 	}
 
-	x.mu.Lock()
-	defer x.mu.Unlock()
-
 	createdAt := x.records[0].CreatedAt
-	bucketID, storedAt := x.lastBucket()
+	buck := x.lastBucket()
 
-	if bucketID == 0 || createdAt.Sub(storedAt) > saveInterval {
-		r := x.db.MustExec(`INSERT INTO bucket (created_at) VALUES (?);`, createdAt)
-		var err error
-		bucketID, err = r.LastInsertId()
-		if err != nil {
-			panic(err)
-		}
+	fmt.Println("buck:", buck)
+	fmt.Println("createdAt:", createdAt)
+	fmt.Println("save interval:", x.getSaveIntervalFunc())
+	fmt.Println("duration:", createdAt.Sub(buck.UpdatedAt))
+
+	if buck.BucketID == 0 || createdAt.Sub(buck.UpdatedAt) > x.getSaveIntervalFunc() {
+		x.db.MustExec(`INSERT INTO bucket DEFAULT VALUES;`)
+		buck = x.lastBucket()
 	}
 	queryStr := `INSERT INTO series(bucket_id, addr, var, value, stored_at)  VALUES `
 	for i, a := range x.records {
 
-		s := fmt.Sprintf("(%d, %d, %d, %v, julianday('%s'))", bucketID, a.Addr, a.Var, a.Value,
+		s := fmt.Sprintf("(%d, %d, %d, %v, julianday('%s'))", buck.BucketID,
+			a.Addr, a.Var, a.Value,
 			a.CreatedAt.Format("2006-01-02 15:04:05.000"))
 		if i == len(x.records)-1 {
 			s += ";"
@@ -97,4 +90,28 @@ func (x *Series) Upload(saveInterval time.Duration) {
 	}
 	x.db.MustExec(queryStr)
 	x.records = nil
+}
+
+type bucket struct {
+	BucketID  int64      `db:"bucket_id"`
+	CreatedAt time.Time  `db:"created_at"`
+	UpdatedAt time.Time  `db:"updated_at"`
+	Year      int        `db:"year"`
+	Month     time.Month `db:"month"`
+	Day       int        `db:"day"`
+}
+
+func (x *Series) lastBucket() bucket {
+	var xs []bucket
+	dbutils.MustSelect(x.db, &xs,
+		`
+SELECT bucket_id, 
+       created_at, 
+       updated_at         
+FROM last_bucket;`)
+	if len(xs) == 0 {
+		return bucket{}
+	}
+	xs[0].CreatedAt.Add(time.Hour * 3)
+	return xs[0]
 }

@@ -1,11 +1,11 @@
 package work
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"github.com/fpawel/anbus/internal/anbus"
-	"github.com/fpawel/anbus/internal/notify"
 	"github.com/fpawel/goutils/serial/modbus"
+	"github.com/pkg/errors"
 	"time"
 )
 
@@ -15,7 +15,7 @@ func (x *worker) main() {
 		sets := x.sets.Config()
 		select {
 		case r := <-x.chModbusRequest:
-			x.window.SendConsoleInfo(r.source)
+			x.notifyConsoleInfo(r.source)
 			if x.prepareComport(sets) {
 				x.getResponse(r, sets)
 				continue
@@ -24,7 +24,7 @@ func (x *worker) main() {
 			va = sets.NextVarAddr(va)
 			if va.Place >= 0 && x.prepareComport(sets) {
 				if v, ok := x.doReadVar(va); ok && sets.SaveMin > 0 {
-					x.series.AddRecord(va.Addr, va.Var, v, time.Minute*time.Duration(sets.SaveMin))
+					x.series.AddRecord(va.Addr, va.Var, v)
 				}
 				continue
 			}
@@ -48,20 +48,20 @@ func (x *worker) prepareComport(sets anbus.Config) bool {
 
 	if !x.comport.Opened() {
 		if err := x.comport.OpenWithConfig(sets.Comport); err != nil {
-			x.window.SendStatusError("%v", err)
+			x.notifyStatusError("%v", err)
 			return false
 		}
 	}
 	return true
 }
 
-func (x *worker) getResponse(r request, cfg anbus.Config) {
+func (x *worker) getResponse(r modbusRequest, cfg anbus.Config) {
 
 	doAddr := func() {
 		if _, err := x.comport.GetResponse(r.Bytes()); err == nil {
-			x.window.SendConsoleInfo(x.comport.Dump())
+			x.notifyConsoleInfo(x.comport.Dump())
 		} else {
-			x.window.SendConsoleError(x.comport.Dump())
+			x.notifyConsoleError("%s: %v", x.comport.Dump(), err)
 		}
 	}
 
@@ -91,17 +91,19 @@ func (x *worker) getResponse(r request, cfg anbus.Config) {
 func (x *worker) doReadVar(va anbus.VarAddr) (float64, bool) {
 
 	value, err := modbus.Read3BCD(x.comport, va.Addr, va.Var)
+	if err == context.DeadlineExceeded {
+		err = errors.New("нет ответа")
+	}
 	if err != nil {
-		err = errors.New(x.comport.Dump())
+		err = errors.New(err.Error() + ": " + x.comport.Dump())
 	}
 
-	r := struct {
+	x.rpcWnd.NotifyParam(msgReadVar, struct {
 		Place, VarIndex int
 		Value           float64
 		Error           string
 	}{
 		va.Place, va.VarIndex, value, fmtErr(err),
-	}
-	x.rpcWnd.NotifyParam(msgReadVar, r)
+	})
 	return value, err == nil
 }

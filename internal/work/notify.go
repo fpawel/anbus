@@ -1,17 +1,31 @@
 package work
 
+import "fmt"
+
 func (x *worker) notifyConsoleInfo(format string, a ...interface{}) {
-	x.rpcWnd.Notifyf(msgConsoleInfo, format, a...)
+	x.notify(msgInfo, msgConsole, format, a...)
 }
 
 func (x *worker) notifyConsoleError(format string, a ...interface{}) {
-	x.rpcWnd.Notifyf(msgConsoleError, format, a...)
+	x.notify(msgErr, msgConsole, format, a...)
 }
 
 func (x *worker) notifyStatusInfo(format string, a ...interface{}) {
-	x.rpcWnd.Notifyf(msgStatusInfo, format, a...)
+	x.notify(msgInfo, msgStatus, format, a...)
 }
 
 func (x *worker) notifyStatusError(format string, a ...interface{}) {
-	x.rpcWnd.Notifyf(msgStatusError, format, a...)
+	x.notify(msgErr, msgStatus, format, a...)
+}
+
+func (x *worker) notify(level MsgTextLevel, kind MsgTextKind, format string, a ...interface{}) {
+	x.rpcWnd.NotifyParam(msgText, struct {
+		Level MsgTextLevel
+		Kind  MsgTextKind
+		Text  string
+	}{
+		level,
+		kind,
+		fmt.Sprintf(format, a...),
+	})
 }

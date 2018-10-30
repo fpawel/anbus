@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/rpc"
 	"sync"
+	"time"
 )
 
 const PipeName = `\\.\pipe\anbus`
@@ -20,14 +21,23 @@ const PipeName = `\\.\pipe\anbus`
 func Main() {
 	x := &worker{
 		sets:            openConfig(),
-		chModbusRequest: make(chan request, 10),
-		series:          data.NewSeries(),
+		chModbusRequest: make(chan modbusRequest, 10),
 		ln:              mustPipeListener(),
-		rpcWnd:          copydata.NewRPCWindow("AnbusServerAppWindow", "TAnbusMainForm"),
+		rpcWnd: copydata.NewRPCWindow("AnbusServerAppWindow",
+			"TAnbusMainForm"),
 	}
 	x.comport = comport.NewPortWithConfig(x.sets.Config().Comport)
+	x.series = data.NewSeries(func() time.Duration {
+		return time.Duration(x.sets.Config().SaveMin) * time.Minute
+	})
 
 	if err := rpc.Register(svc.NewSetsSvc(x.sets)); err != nil {
+		panic(err)
+	}
+	if err := rpc.Register(&CmdSvc{x}); err != nil {
+		panic(err)
+	}
+	if err := rpc.Register(x.series.Buckets()); err != nil {
 		panic(err)
 	}
 
@@ -110,21 +120,3 @@ func openConfig() *anbus.Sets {
 	}
 	return cfg
 }
-
-//type debugReadWriteCloser struct {
-//	conn net.Conn
-//}
-//
-//func (x *debugReadWriteCloser) Write(p []byte) (int, error) {
-//	n,err := x.conn.Write(p)
-//	return n,err
-//}
-//
-//func (x *debugReadWriteCloser) Read(p []byte) (int, error) {
-//	n,err := x.conn.Read(p)
-//	return n,err
-//}
-//
-//func (x *debugReadWriteCloser) Close() error {
-//	return x.conn.Close()
-//}

@@ -3,16 +3,17 @@ package work
 type Msg uintptr
 
 const (
-	msgStatusInfo uintptr = iota
-	msgStatusError
-	msgConsoleInfo
-	msgConsoleError
+	msgText uintptr = iota
 	msgReadVar
 )
 
-type TextMsgLevel string
+type MsgTextLevel string
+
+type MsgTextKind string
 
 const (
-	msgInfo TextMsgLevel = "info"
-	msgErr  TextMsgLevel = "error"
+	msgInfo    MsgTextLevel = "info"
+	msgErr     MsgTextLevel = "error"
+	msgConsole MsgTextKind  = "console"
+	msgStatus  MsgTextKind  = "status"
 )
