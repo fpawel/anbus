@@ -6,8 +6,8 @@ import (
 
 type Config struct {
 	Network
-	Comport comport.Config `json:"comport"`
-	SaveMin int            `json:"save_min"`
+	Comport    comport.Config `json:"comport"`
+	SaveSeries bool           `json:"save_series"`
 }
 
 func configFileName() string {

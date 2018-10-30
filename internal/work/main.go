@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/rpc"
 	"sync"
-	"time"
 )
 
 const PipeName = `\\.\pipe\anbus`
@@ -27,19 +26,12 @@ func Main() {
 			"TAnbusMainForm"),
 	}
 	x.comport = comport.NewPortWithConfig(x.sets.Config().Comport)
-	x.series = data.NewSeries(func() time.Duration {
-		return time.Duration(x.sets.Config().SaveMin) * time.Minute
-	})
+	x.series = data.NewSeries()
 
-	if err := rpc.Register(svc.NewSetsSvc(x.sets)); err != nil {
-		panic(err)
-	}
-	if err := rpc.Register(&CmdSvc{x}); err != nil {
-		panic(err)
-	}
-	if err := rpc.Register(x.series.Buckets()); err != nil {
-		panic(err)
-	}
+	rpcMustRegister(
+		svc.NewSetsSvc(x.sets),
+		&CmdSvc{x},
+		x.series.Buckets())
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -119,4 +111,13 @@ func openConfig() *anbus.Sets {
 		fmt.Println("sets:", errCfg)
 	}
 	return cfg
+}
+
+func rpcMustRegister(rcvrs ...interface{}) {
+	for _, rcvr := range rcvrs {
+		if err := rpc.Register(rcvr); err != nil {
+			panic(err)
+		}
+	}
+
 }

@@ -61,12 +61,11 @@ func (x *Sets) UserConfig() settings.Config {
 				Hint: "Графики",
 				Properties: []settings.Property{
 					{
-						Hint:         "Интервал сохранения графиков, минут",
-						Name:         "save_min",
-						DefaultValue: "0",
-						ValueType:    settings.VtInt,
-						Min:          &settings.ValueEx{Value: 0},
-						Value:        strconv.Itoa(x.cfg.SaveMin),
+						Hint:         "Сохранять",
+						Name:         "save_series",
+						DefaultValue: "false",
+						ValueType:    settings.VtBool,
+						Value:        strconv.FormatBool(x.cfg.SaveSeries),
 					},
 				},
 			},

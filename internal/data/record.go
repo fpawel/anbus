@@ -6,9 +6,8 @@ import (
 )
 
 type Record struct {
-	CreatedAt    time.Time
-	Var          modbus.Var
-	Addr         modbus.Addr
-	Value        float64
-	CreatedAtStr string
+	StoredAt time.Time
+	Var      modbus.Var
+	Addr     modbus.Addr
+	Value    float64
 }

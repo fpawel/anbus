@@ -63,58 +63,16 @@ func (x *SetsSvc) SetValue(p settings.PropertyValue, _ *struct{}) error {
 		}
 	case "chart":
 		switch p.Name {
-		case "save_min":
-			n, err := strconv.Atoi(p.Value)
+		case "save_series":
+			n, err := strconv.ParseBool(p.Value)
 			if err != nil {
 				return err
 			}
-			cfg.SaveMin = n
+			cfg.SaveSeries = n
 
 		}
 	}
 
-	x.sets.SetConfig(cfg)
-	return nil
-}
-
-func (x *SetsSvc) SetSeriesSaveMin(value [1]int, _ *struct{}) error {
-	cfg := x.sets.Config()
-	cfg.SaveMin = value[0]
-	x.sets.SetConfig(cfg)
-	return nil
-}
-
-func (x *SetsSvc) SetMaxAttemptRead(value [1]int, _ *struct{}) error {
-	cfg := x.sets.Config()
-	cfg.Comport.Uart.MaxAttemptsRead = value[0]
-	x.sets.SetConfig(cfg)
-	return nil
-}
-
-func (x *SetsSvc) SetReadTimeoutMillis(value [1]int, _ *struct{}) error {
-	cfg := x.sets.Config()
-	cfg.Comport.Uart.ReadTimeout = time.Microsecond * time.Duration(value[0])
-	x.sets.SetConfig(cfg)
-	return nil
-}
-
-func (x *SetsSvc) SetReadByteTimeoutMillis(value [1]int, _ *struct{}) error {
-	cfg := x.sets.Config()
-	cfg.Comport.Uart.ReadByteTimeout = time.Microsecond * time.Duration(value[0])
-	x.sets.SetConfig(cfg)
-	return nil
-}
-
-func (x *SetsSvc) SetBaud(value [1]int, _ *struct{}) error {
-	cfg := x.sets.Config()
-	cfg.Comport.Serial.Baud = value[0]
-	x.sets.SetConfig(cfg)
-	return nil
-}
-
-func (x *SetsSvc) SetPortName(value [1]string, _ *struct{}) error {
-	cfg := x.sets.Config()
-	cfg.Comport.Serial.Name = value[0]
 	x.sets.SetConfig(cfg)
 	return nil
 }

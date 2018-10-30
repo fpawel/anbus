@@ -5,48 +5,52 @@ const SQLCreate = `
 PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
 
-CREATE TABLE IF NOT EXISTS bucket (
+CREATE TABLE IF NOT EXISTS bucket
+(
   bucket_id  INTEGER   NOT NULL PRIMARY KEY,
-  created_at TIMESTAMP NOT NULL UNIQUE
+  created_at TIMESTAMP NOT NULL UNIQUE DEFAULT (datetime('now')),
+  updated_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS series (
-  stored_at REAL    NOT NULL, -- DEFAULT (julianday(current_timestamp)),
+CREATE TABLE IF NOT EXISTS series
+(
   bucket_id INTEGER NOT NULL,
-  addr      INTEGER NOT NULL CHECK (addr > 0),
+  Addr      INTEGER NOT NULL CHECK (Addr > 0),
   var       INTEGER NOT NULL CHECK (var >= 0),
-  value     REAL    NOT NULL,
+  stored_at REAL    NOT NULL,
+  Value     REAL    NOT NULL,
   FOREIGN KEY (bucket_id) REFERENCES bucket (bucket_id)
     ON DELETE CASCADE
 );
 
+CREATE TRIGGER IF NOT EXISTS trigger_bucket_updated_at
+  AFTER INSERT
+  ON series
+  FOR EACH ROW
+  BEGIN
+    UPDATE bucket
+    SET updated_at = datetime('now')
+    WHERE bucket.bucket_id = new.bucket_id;
+  END;
+
+CREATE VIEW IF NOT EXISTS series_time AS
+  SELECT bucket_id,  Addr, var, Value,
+         datetime(stored_at) AS stored_at
+  FROM series;
+
+CREATE VIEW IF NOT EXISTS bucket_time AS
+  SELECT *,
+         cast(strftime('%Y', created_at) AS INT) AS year,
+         cast(strftime('%m', created_at) AS INT) AS month,
+         cast(strftime('%d', created_at) AS INT) AS day
+  FROM bucket;
+
 CREATE VIEW IF NOT EXISTS last_bucket AS
   SELECT *
-  FROM bucket
+  FROM bucket_time
   ORDER BY created_at DESC
   LIMIT 1;
 
-CREATE VIEW IF NOT EXISTS last_value AS
-  SELECT cast(strftime('%Y', datetime(stored_at)) AS INT) AS year,
-         cast(strftime('%m', datetime(stored_at)) AS INT) AS month,
-         cast(strftime('%d', datetime(stored_at)) AS INT) AS day,
-         cast(strftime('%H', datetime(stored_at)) AS INT) AS hour,
-         cast(strftime('%M', datetime(stored_at)) AS INT) AS minute,
-         cast(strftime('%S', datetime(stored_at)) AS INT) AS second,
-         cast(datetime(stored_at) AS TEXT)                AS stored_at,
-         bucket_id
-  FROM series
-  WHERE bucket_id IN (SELECT bucket_id FROM last_bucket)
-  ORDER BY stored_at DESC
-  LIMIT 1;
-
-
-CREATE VIEW IF NOT EXISTS bucket_time AS
-  SELECT *, cast(strftime('%Y', created_at) AS INT) AS year,
-            cast(strftime('%m', created_at) AS INT) AS month,
-            cast(strftime('%d', created_at) AS INT) AS day
-  FROM bucket
-  ORDER BY created_at;
 
 --SELECT datetime((julianday(current_timestamp)));
 --SELECT (julianday(current_timestamp));

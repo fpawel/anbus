@@ -11,6 +11,7 @@ import (
 
 func (x *worker) main() {
 	var va anbus.VarAddr
+
 	for !x.flagClose {
 		sets := x.sets.Config()
 		select {
@@ -23,7 +24,7 @@ func (x *worker) main() {
 		default:
 			va = sets.NextVarAddr(va)
 			if va.Place >= 0 && x.prepareComport(sets) {
-				if v, ok := x.doReadVar(va); ok && sets.SaveMin > 0 {
+				if v, ok := x.doReadVar(va); ok && sets.SaveSeries {
 					x.series.AddRecord(va.Addr, va.Var, v)
 				}
 				continue
