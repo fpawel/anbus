@@ -12,7 +12,14 @@ import (
 type Series struct {
 	db      *sqlx.DB
 	mu      sync.Mutex
-	records []Record
+	records []record
+}
+
+type record struct {
+	storedAt time.Time
+	nVar     modbus.Var
+	addr     modbus.Addr
+	value    float64
 }
 
 func NewSeries() *Series {
@@ -29,16 +36,15 @@ func (x *Series) AddRecord(addr modbus.Addr, v modbus.Var, value float64) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 
-	if len(x.records) > 0 && time.Since(x.records[0].StoredAt) > time.Minute {
+	x.records = append(x.records, record{
+		storedAt: time.Now(),
+		addr:     addr,
+		nVar:     v,
+		value:    value,
+	})
+	if time.Since(x.records[0].storedAt) > time.Minute {
 		x.save()
 	}
-
-	x.records = append(x.records, Record{
-		StoredAt: time.Now(),
-		Addr:     addr,
-		Var:      v,
-		Value:    value,
-	})
 }
 
 func (x *Series) Save() {
@@ -62,7 +68,7 @@ func (x *Series) save() {
 
 	buck := x.lastBucket()
 
-	if buck.BucketID == 0 || x.records[0].StoredAt.Sub(buck.UpdatedAt) > time.Minute {
+	if buck.BucketID == 0 || x.records[0].storedAt.Sub(buck.UpdatedAt) > time.Minute {
 		x.db.MustExec(`INSERT INTO bucket DEFAULT VALUES;`)
 		buck = x.lastBucket()
 	}
@@ -70,8 +76,8 @@ func (x *Series) save() {
 	for i, a := range x.records {
 
 		s := fmt.Sprintf("(%d, %d, %d, %v, julianday('%s'))", buck.BucketID,
-			a.Addr, a.Var, a.Value,
-			a.StoredAt.Format("2006-01-02 15:04:05.000"))
+			a.addr, a.nVar, a.value,
+			a.storedAt.Format("2006-01-02 15:04:05.000"))
 		if i == len(x.records)-1 {
 			s += ";"
 		} else {

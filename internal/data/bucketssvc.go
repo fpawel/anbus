@@ -40,6 +40,11 @@ func (x *BucketsSvc) Buckets(p [3]int, buckets *[]Bucket) error {
 SELECT * FROM bucket_time 
 WHERE year = ? AND month = ? AND day = ?;`,
 		p[0], p[1], p[2])
+
+	for i := range *buckets {
+		(*buckets)[i].CreatedAt = (*buckets)[i].CreatedAt.Add(3 * time.Hour)
+		(*buckets)[i].UpdatedAt = (*buckets)[i].UpdatedAt.Add(3 * time.Hour)
+	}
 	return nil
 }
 
@@ -49,7 +54,8 @@ func (x *BucketsSvc) Vars(p [1]int, vars *[]int) error {
 	return nil
 }
 
-func (x *BucketsSvc) Records(p [1]int, records *[]Record) error {
+func (x *BucketsSvc) Records(p [1]int, r *[][10]float64) error {
+
 	var xs []struct {
 		StoredAt string      `db:"stored_at"`
 		Var      modbus.Var  `db:"var"`
@@ -59,21 +65,28 @@ func (x *BucketsSvc) Records(p [1]int, records *[]Record) error {
 
 	dbutils.MustSelect(x.db, &xs,
 		`
-SELECT stored_at, var, addr, value 
-FROM series_time 
+SELECT addr, var, value, strftime('%Y-%m-%d %H:%M:%f', stored_at) AS stored_at
+FROM series 
 WHERE bucket_id = ?;`, p[0])
 
 	for _, v := range xs {
-		t, err := time.ParseInLocation("2006-01-02 15:04:05.000", v.StoredAt, time.Local)
+		t, err := time.Parse("2006-01-02 15:04:05.000", v.StoredAt)
 		if err != nil {
 			panic(err)
 		}
-		*records = append(*records, Record{
-			Value:    v.Value,
-			Addr:     v.Addr,
-			Var:      v.Var,
-			StoredAt: t,
+		*r = append(*r, [10]float64{
+			float64(v.Addr),
+			float64(v.Var),
+			float64(t.Year()),
+			float64(t.Month()),
+			float64(t.Day()),
+			float64(t.Hour()),
+			float64(t.Minute()),
+			float64(t.Second()),
+			float64(t.Nanosecond() / int(time.Millisecond)),
+			v.Value,
 		})
+
 	}
 
 	return nil

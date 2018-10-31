@@ -15,10 +15,10 @@ CREATE TABLE IF NOT EXISTS bucket
 CREATE TABLE IF NOT EXISTS series
 (
   bucket_id INTEGER NOT NULL,
-  Addr      INTEGER NOT NULL CHECK (Addr > 0),
+  addr      INTEGER NOT NULL CHECK (addr > 0),
   var       INTEGER NOT NULL CHECK (var >= 0),
   stored_at REAL    NOT NULL,
-  Value     REAL    NOT NULL,
+  value     REAL    NOT NULL,
   FOREIGN KEY (bucket_id) REFERENCES bucket (bucket_id)
     ON DELETE CASCADE
 );
@@ -34,8 +34,8 @@ CREATE TRIGGER IF NOT EXISTS trigger_bucket_updated_at
   END;
 
 CREATE VIEW IF NOT EXISTS series_time AS
-  SELECT bucket_id,  Addr, var, Value,
-         datetime(stored_at) AS stored_at
+  SELECT bucket_id,  addr, var, value,
+         strftime('%Y.%m.%d %H:%M:%f', stored_at) AS stored_at
   FROM series;
 
 CREATE VIEW IF NOT EXISTS bucket_time AS

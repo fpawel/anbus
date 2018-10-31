@@ -36,13 +36,11 @@ func (x txtCmd) parseModbusRequest() (modbusRequest, error) {
 
 	switch xs[0] {
 	case "W32":
-		r.ProtocolCommandCode = 0x10
-		xs = xs[1:]
-		b, err := parseW32(xs)
-		if err != nil {
-			return r, errors.Wrap(err, "кодманда регистра 32")
+		var err error
+		if r.Request, err = parseW32(r.Addr, xs[1:]); err != nil {
+			return r, errors.Wrap(err, "запись в регистр 32")
 		}
-		r.Data = append(r.Data, b...)
+		return r, nil
 	default:
 		if cmdCode, err := parseHexByte(xs[0]); err == nil {
 			r.ProtocolCommandCode = modbus.ProtocolCommandCode(cmdCode)
@@ -62,26 +60,21 @@ func (x txtCmd) parseModbusRequest() (modbusRequest, error) {
 	return r, nil
 }
 
-func parseW32(xs []string) ([]byte, error) {
-	var r []byte
-	if b, err := parseHexByte(xs[0]); err == nil {
-		r = append(r, byte(b))
-	} else {
-		return r, errors.Wrap(err, "старший байт кода кодманды")
-	}
+func parseW32(addr modbus.Addr, xs []string) (modbus.Request, error) {
 
-	if b, err := parseHexByte(xs[1]); err == nil {
-		r = append(r, byte(b))
-	} else {
-		return r, errors.Wrap(err, "младший байт кода кодманды")
-	}
-
-	v, err := strconv.ParseFloat(strings.Replace(xs[2], ",", ".", -1), 64)
+	cmd, err := strconv.Atoi(xs[0])
 	if err != nil {
-		return r, err
+		return modbus.Request{}, errors.Wrap(err, "код кодманды")
 	}
-	r = append(r, modbus.BCD6(v)...)
-	return r, nil
+	if cmd < 0 || cmd > 0xFFFF {
+		return modbus.Request{}, errors.New("код кодманды должен быть от 0 до 0xFFFF")
+	}
+
+	v, err := strconv.ParseFloat(strings.Replace(xs[1], ",", ".", -1), 64)
+	if err != nil {
+		return modbus.Request{}, errors.Wrap(err, "значение аргумента")
+	}
+	return modbus.Write32BCDRequest(addr, 0x010, modbus.DeviceCommandCode(cmd), v), nil
 }
 
 func parseHexByte(s string) (uint64, error) {

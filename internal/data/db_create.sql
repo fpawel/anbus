@@ -30,10 +30,6 @@ CREATE TRIGGER IF NOT EXISTS trigger_bucket_updated_at
     WHERE bucket.bucket_id = new.bucket_id;
   END;
 
-CREATE VIEW IF NOT EXISTS series_time AS
-  SELECT bucket_id,  addr, var, value,
-         strftime('%Y-%m-%d %H:%M:%f', stored_at) AS stored_at
-  FROM series;
 
 CREATE VIEW IF NOT EXISTS bucket_time AS
   SELECT *,
