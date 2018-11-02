@@ -54,6 +54,12 @@ func (x *BucketsSvc) Vars(p [1]int, vars *[]int) error {
 	return nil
 }
 
+func (x *BucketsSvc) Addresses(p [1]int, vars *[]int) error {
+	dbutils.MustSelect(x.db, vars,
+		`SELECT DISTINCT addr FROM series WHERE bucket_id = ?;`, p[0])
+	return nil
+}
+
 func (x *BucketsSvc) Records(p [1]int, r *[][10]float64) error {
 
 	var xs []struct {

@@ -22,9 +22,9 @@ func Main() {
 		sets:            openConfig(),
 		chModbusRequest: make(chan modbusRequest, 10),
 		ln:              mustPipeListener(),
-		rpcWnd: copydata.NewRPCWindow("AnbusServerAppWindow",
-			"TAnbusMainForm"),
+		rpcWnd:          copydata.NewRPCWindow(anbus.ServerAppWindow, anbus.PeerMainWindow),
 	}
+
 	x.comport = comport.NewPortWithConfig(x.sets.Config().Comport)
 	x.series = data.NewSeries()
 
