@@ -6,7 +6,5 @@ const (
 	AppName winapp.AnalitpriborAppName = "anbus"
 )
 const (
-	ServerAppWindow = "AnbusServerAppWindow"
-	PeerMainWindow  = "TAnbusMainForm"
-	PeerExeName     = "anbusui.exe"
+	PeerExeName = "anbusui.exe"
 )

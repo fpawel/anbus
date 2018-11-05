@@ -1,6 +1,7 @@
 package work
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/Microsoft/go-winio"
 	"github.com/fpawel/anbus/internal/anbus"
@@ -8,21 +9,36 @@ import (
 	"github.com/fpawel/anbus/internal/svc"
 	"github.com/fpawel/goutils/copydata"
 	"github.com/fpawel/goutils/serial/comport"
+	"github.com/fpawel/goutils/winapp"
 	"github.com/lxn/win"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"net"
 	"net/rpc"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"sync"
 )
 
-const PipeName = `\\.\pipe\anbus`
+const (
+	pipeName                      = `\\.\pipe\anbus`
+	anbusServerAppWindowClassName = "AnbusServerAppWindow"
+	peerWindowClassName           = "TAnbusMainForm"
+)
 
-func Main() {
+func Main(mustRunPeer bool) {
+
 	x := &worker{
 		sets:            openConfig(),
 		chModbusRequest: make(chan modbusRequest, 10),
 		ln:              mustPipeListener(),
-		rpcWnd:          copydata.NewRPCWindow(anbus.ServerAppWindow, anbus.PeerMainWindow),
+		rpcWnd:          copydata.NewRPCWindow(anbusServerAppWindowClassName, peerWindowClassName),
+	}
+
+	if mustRunPeer && !winapp.IsWindow(findPeer()) {
+		if err := runPeer(); err != nil {
+			panic(err)
+		}
 	}
 
 	x.comport = comport.NewPortWithConfig(x.sets.Config().Comport)
@@ -86,11 +102,31 @@ func Main() {
 		fmt.Println("close comport error:", err)
 	}
 
+	for hWnd := findPeer(); winapp.IsWindow(hWnd); hWnd = findPeer() {
+		win.SendMessage(hWnd, win.WM_CLOSE, 0, 0)
+	}
+}
+
+func runPeer() error {
+	const (
+		peerAppExe = "anbusui.exe"
+	)
+	dir := filepath.Dir(os.Args[0])
+
+	if _, err := os.Stat(filepath.Join(dir, peerAppExe)); os.IsNotExist(err) {
+		dir = anbus.AppName.Dir()
+	}
+
+	cmd := exec.Command(filepath.Join(dir, peerAppExe), "-must-close-server")
+	cmd.Stdout = os.Stdout
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	return cmd.Start()
 }
 
 func mustPipeListener() net.Listener {
 
-	ln, err := winio.ListenPipe(PipeName, nil)
+	ln, err := winio.ListenPipe(pipeName, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -119,5 +155,8 @@ func rpcMustRegister(rcvrs ...interface{}) {
 			panic(err)
 		}
 	}
+}
 
+func findPeer() win.HWND {
+	return winapp.FindWindow(peerWindowClassName)
 }

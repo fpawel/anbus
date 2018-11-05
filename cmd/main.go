@@ -6,8 +6,8 @@ import (
 )
 
 func main() {
-	ensurePeer := true
-	flag.BoolVar(&ensurePeer, "ensure-peer", true, "ensure peer application")
+	mustRunPeer := true
+	flag.BoolVar(&mustRunPeer, "must-run-peer", true, "ensure peer application")
 	flag.Parse()
-	work.Main()
+	work.Main(mustRunPeer)
 }
