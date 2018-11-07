@@ -25,5 +25,5 @@ func (x *CmdSvc) Perform(v [1]string, _ *struct{}) error {
 			return nil
 		}
 	}
-	return errors.Wrap(err, v[0])
+	return errors.Errorf("нет такой команды: %q", c.name())
 }
