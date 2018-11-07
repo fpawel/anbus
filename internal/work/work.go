@@ -112,7 +112,7 @@ func (x *worker) doReadVar(va anbus.VarAddr, cfg anbus.Config) (float64, bool) {
 		if err == nil {
 			x.notifyConsoleInfo("%s %s %v", s, x.comport.Dump(), value)
 		} else {
-			x.notifyConsoleError("%s ОШИБКА %v", s, err)
+			x.notifyConsoleError("%s %v", s, err)
 		}
 	}
 	return value, err == nil

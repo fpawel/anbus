@@ -106,7 +106,7 @@ WHERE bucket_id = %d AND
       value >= %v AND 
       value <= %v AND 
       stored_at >= julianday('%v') AND 
-      stored_at <= julianday('%v');\n`,
+      stored_at <= julianday('%v');`,
 
 		request.BucketID, request.Addr, request.Var,
 		request.ValueMinimum, request.ValueMaximum,
