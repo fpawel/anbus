@@ -1,6 +1,9 @@
 package work
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+	"strings"
+)
 
 type CmdSvc struct {
 	w *worker
@@ -11,15 +14,16 @@ func (x *CmdSvc) Perform(v [1]string, _ *struct{}) error {
 	if err != nil {
 		return errors.Wrap(err, v[0])
 	}
-	if c.tokens()[0] == "EXIT" {
+	switch strings.ToUpper(c.name()) {
+	case "EXIT":
 		if err := x.w.rpcWnd.Close(); err != nil {
 			return errors.Wrap(err, "close window: unexpected error")
 		}
+	default:
+		if r, err := c.parseModbusRequest(); err == nil {
+			x.w.chModbusRequest <- r
+			return nil
+		}
 	}
-	if r, err := c.parseModbusRequest(); err == nil {
-		x.w.chModbusRequest <- r
-		return nil
-	} else {
-		return errors.Wrap(err, v[0])
-	}
+	return errors.Wrap(err, v[0])
 }

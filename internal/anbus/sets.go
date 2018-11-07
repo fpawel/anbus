@@ -57,15 +57,22 @@ func (x *Sets) UserConfig() settings.Config {
 		Sections: []settings.Section{
 			settings.Comport("comport", "СОМ порт", x.cfg.Comport),
 			{
-				Name: "chart",
-				Hint: "Графики",
+				Name: "work",
+				Hint: "Опрос",
 				Properties: []settings.Property{
 					{
-						Hint:         "Сохранять",
+						Hint:         "Сохранять точки графиков",
 						Name:         "save_series",
 						DefaultValue: "false",
 						ValueType:    settings.VtBool,
 						Value:        strconv.FormatBool(x.cfg.SaveSeries),
+					},
+					{
+						Hint:         "Показывать посылки COM порта",
+						Name:         "dump_comport",
+						DefaultValue: "false",
+						ValueType:    settings.VtBool,
+						Value:        strconv.FormatBool(x.cfg.DumpComport),
 					},
 				},
 			},

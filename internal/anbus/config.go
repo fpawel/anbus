@@ -6,8 +6,9 @@ import (
 
 type Config struct {
 	Network
-	Comport    comport.Config `json:"comport"`
-	SaveSeries bool           `json:"save_series"`
+	Comport     comport.Config `json:"comport"`
+	SaveSeries  bool           `json:"save_series"`
+	DumpComport bool           `json:"dump_comport"`
 }
 
 func configFileName() string {

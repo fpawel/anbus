@@ -13,18 +13,18 @@ func (x *worker) main() {
 	var va anbus.VarAddr
 
 	for !x.flagClose {
-		sets := x.sets.Config()
+		cfg := x.sets.Config()
 		select {
 		case r := <-x.chModbusRequest:
 			x.notifyConsoleInfo(r.source)
-			if x.prepareComport(sets) {
-				x.getResponse(r, sets)
+			if x.prepareComport(cfg) {
+				x.getResponse(r, cfg)
 				continue
 			}
 		default:
-			va = sets.NextVarAddr(va)
-			if va.Place >= 0 && x.prepareComport(sets) {
-				if v, ok := x.doReadVar(va); ok && sets.SaveSeries {
+			va = cfg.NextVarAddr(va)
+			if va.Place >= 0 && x.prepareComport(cfg) {
+				if v, ok := x.doReadVar(va, cfg); ok && cfg.SaveSeries {
 					x.series.AddRecord(va.Addr, va.Var, v)
 				}
 				continue
@@ -89,7 +89,7 @@ func (x *worker) getResponse(r modbusRequest, cfg anbus.Config) {
 
 }
 
-func (x *worker) doReadVar(va anbus.VarAddr) (float64, bool) {
+func (x *worker) doReadVar(va anbus.VarAddr, cfg anbus.Config) (float64, bool) {
 
 	value, err := modbus.Read3BCD(x.comport, va.Addr, va.Var)
 	if err == context.DeadlineExceeded {
@@ -106,5 +106,14 @@ func (x *worker) doReadVar(va anbus.VarAddr) (float64, bool) {
 	}{
 		va.Place, va.VarIndex, value, fmtErr(err),
 	})
+
+	if cfg.DumpComport {
+		s := time.Now().Format("15:04:05.000")
+		if err == nil {
+			x.notifyConsoleInfo("%s %s %v", s, x.comport.Dump(), value)
+		} else {
+			x.notifyConsoleError("%s ОШИБКА %v", s, err)
+		}
+	}
 	return value, err == nil
 }

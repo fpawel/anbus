@@ -101,7 +101,6 @@ func Main(mustRunPeer bool) {
 	if err := x.comport.Close(); err != nil {
 		fmt.Println("close comport error:", err)
 	}
-
 	for hWnd := findPeer(); winapp.IsWindow(hWnd); hWnd = findPeer() {
 		win.SendMessage(hWnd, win.WM_CLOSE, 0, 0)
 	}

@@ -61,7 +61,7 @@ func (x *SetsSvc) SetValue(p settings.PropertyValue, _ *struct{}) error {
 			}
 			cfg.Comport.Uart.MaxAttemptsRead = n
 		}
-	case "chart":
+	case "work":
 		switch p.Name {
 		case "save_series":
 			n, err := strconv.ParseBool(p.Value)
@@ -69,6 +69,12 @@ func (x *SetsSvc) SetValue(p settings.PropertyValue, _ *struct{}) error {
 				return err
 			}
 			cfg.SaveSeries = n
+		case "dump_comport":
+			n, err := strconv.ParseBool(p.Value)
+			if err != nil {
+				return err
+			}
+			cfg.DumpComport = n
 
 		}
 	}
@@ -166,5 +172,11 @@ func (x *SetsSvc) DelPlace(_ struct{}, res *anbus.Network) error {
 	}
 	x.sets.SetConfig(cfg)
 	*res = cfg.Network
+	return nil
+}
+
+func (x *SetsSvc) DebugConfig(_ struct{}, res *anbus.Config) error {
+
+	*res = x.sets.Config()
 	return nil
 }

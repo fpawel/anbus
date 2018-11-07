@@ -10,7 +10,7 @@ type txtCmd struct {
 }
 
 func (x txtCmd) tokens() []string {
-	return strings.Split(strings.ToUpper(x.source), " ")
+	return strings.Split(x.source, " ")
 }
 
 func (x txtCmd) name() string {

@@ -2,7 +2,6 @@ package data
 
 import (
 	"fmt"
-	"github.com/fpawel/goutils/dbutils"
 	"github.com/fpawel/goutils/serial/modbus"
 	"github.com/jmoiron/sqlx"
 	"sync"
@@ -16,10 +15,10 @@ type Series struct {
 }
 
 type record struct {
-	storedAt time.Time
-	nVar     modbus.Var
-	addr     modbus.Addr
-	value    float64
+	StoredAt time.Time
+	Var      modbus.Var
+	Addr     modbus.Addr
+	Value    float64
 }
 
 func NewSeries() *Series {
@@ -37,12 +36,12 @@ func (x *Series) AddRecord(addr modbus.Addr, v modbus.Var, value float64) {
 	defer x.mu.Unlock()
 
 	x.records = append(x.records, record{
-		storedAt: time.Now(),
-		addr:     addr,
-		nVar:     v,
-		value:    value,
+		StoredAt: time.Now(),
+		Addr:     addr,
+		Var:      v,
+		Value:    value,
 	})
-	if time.Since(x.records[0].storedAt) > time.Minute {
+	if time.Since(x.records[0].StoredAt) > time.Minute {
 		x.save()
 	}
 }
@@ -55,10 +54,7 @@ func (x *Series) Save() {
 }
 
 func (x *Series) Buckets() *BucketsSvc {
-	return &BucketsSvc{
-		db: x.db,
-		mu: &x.mu,
-	}
+	return &BucketsSvc{x}
 }
 
 func (x *Series) save() {
@@ -68,7 +64,7 @@ func (x *Series) save() {
 
 	buck := x.lastBucket()
 
-	if buck.BucketID == 0 || x.records[0].storedAt.Sub(buck.UpdatedAt) > time.Minute {
+	if buck.BucketID == 0 || x.records[0].StoredAt.Sub(buck.UpdatedAt) > time.Minute {
 		x.db.MustExec(`INSERT INTO bucket DEFAULT VALUES;`)
 		buck = x.lastBucket()
 	}
@@ -76,8 +72,8 @@ func (x *Series) save() {
 	for i, a := range x.records {
 
 		s := fmt.Sprintf("(%d, %d, %d, %v, julianday('%s'))", buck.BucketID,
-			a.addr, a.nVar, a.value,
-			a.storedAt.Format("2006-01-02 15:04:05.000"))
+			a.Addr, a.Var, a.Value,
+			a.StoredAt.Format("2006-01-02 15:04:05.000"))
 		if i == len(x.records)-1 {
 			s += ";"
 		} else {
@@ -90,12 +86,5 @@ func (x *Series) save() {
 }
 
 func (x *Series) lastBucket() Bucket {
-	var xs []Bucket
-	dbutils.MustSelect(x.db, &xs,
-		`SELECT bucket_id, created_at, updated_at FROM last_bucket;`)
-	if len(xs) == 0 {
-		return Bucket{}
-	}
-	xs[0].CreatedAt.Add(time.Hour * 3)
-	return xs[0]
+	return lastBucket(x.db)
 }
