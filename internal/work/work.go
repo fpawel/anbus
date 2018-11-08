@@ -9,19 +9,21 @@ import (
 	"time"
 )
 
-func (x *worker) main() {
+func (x *worker) work() {
 	var va anbus.VarAddr
-
-	for !x.flagClose {
-		cfg := x.sets.Config()
+	for {
 		select {
+		case <-x.comport.Context().Done():
+			return
 		case r := <-x.chModbusRequest:
+			cfg := x.sets.Config()
 			x.notifyConsoleInfo(r.source)
 			if x.prepareComport(cfg) {
 				x.getResponse(r, cfg)
 				continue
 			}
 		default:
+			cfg := x.sets.Config()
 			va = cfg.NextVarAddr(va)
 			if va.Place >= 0 && x.prepareComport(cfg) {
 				if v, ok := x.doReadVar(va, cfg); ok && cfg.SaveSeries {
@@ -48,7 +50,7 @@ func (x *worker) prepareComport(sets anbus.Config) bool {
 	}
 
 	if !x.comport.Opened() {
-		if err := x.comport.OpenWithConfig(sets.Comport); err != nil {
+		if err := x.comport.Open(sets.Comport); err != nil {
 			x.notifyStatusError("%v", err)
 			return false
 		}

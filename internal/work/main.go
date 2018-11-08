@@ -2,15 +2,17 @@ package work
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/Microsoft/go-winio"
 	"github.com/fpawel/anbus/internal/anbus"
-	"github.com/fpawel/anbus/internal/data"
 	"github.com/fpawel/anbus/internal/svc"
 	"github.com/fpawel/goutils/copydata"
 	"github.com/fpawel/goutils/serial/comport"
 	"github.com/fpawel/goutils/winapp"
+	"github.com/hashicorp/go-multierror"
 	"github.com/lxn/win"
+	"github.com/pkg/errors"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"net"
 	"net/rpc"
@@ -41,69 +43,80 @@ func Main(mustRunPeer bool) {
 		}
 	}
 
-	x.comport = comport.NewPortWithConfig(x.sets.Config().Comport)
-	x.series = data.NewSeries()
+	ctx, cancel := context.WithCancel(context.Background())
+	x.comport = comport.NewPort(ctx)
+
+	chartSvc, series := svc.NewChartSvc()
+	x.series = series
 
 	rpcMustRegister(
 		svc.NewSetsSvc(x.sets),
 		&CmdSvc{x},
-		x.series.Buckets())
+		chartSvc)
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 
+	// цикл rpc
 	go func() {
 		defer wg.Done()
+		defer x.rpcWnd.CloseWindow()
+		count := 0
 		for {
 			switch conn, err := x.ln.Accept(); err {
 			case nil:
-				go jsonrpc2.ServeConn(conn)
+				go func() {
+					count++
+					jsonrpc2.ServeConnContext(ctx, conn)
+					if count--; count == 0 && mustRunPeer {
+						x.rpcWnd.CloseWindow()
+						return
+					}
+				}()
 			case winio.ErrPipeListenerClosed:
 				return
 			default:
-				panic(err)
+				fmt.Println("rpc pipe error:", err)
+				return
 			}
 		}
 	}()
 
+	// цикл компорта
 	go func() {
-		x.main()
+		x.work()
 		wg.Done()
 	}()
 
 	// цикл оконных сообщений
-	for {
-		var msg win.MSG
-		if win.GetMessage(&msg, 0, 0, 0) == 0 {
-			break
-		}
-		win.TranslateMessage(&msg)
-		win.DispatchMessage(&msg)
-	}
-
-	// всё закрыть
-
-	x.flagClose = true // установить флаг, сигнализирующий что надо выйти из всех бесконечных циклов
-
+	runWindowMessageLoop()
+	cancel()
 	if err := x.ln.Close(); err != nil {
 		fmt.Println("close pipe listener error:", err)
 	}
+	wg.Wait()
+	if err := x.Close(); err != nil {
+		fmt.Println(err)
+	}
+}
 
-	x.comport.Cancel() // прервать СОМ порт
-	wg.Wait()          // дождаться завершения основного воркера
+func (x *worker) Close() (result error) {
 
 	if err := x.series.Close(); err != nil {
-		fmt.Println("close series error:", err)
+		result = multierror.Append(result, errors.Wrap(err, "close DB series"))
 	}
 	if err := x.sets.Save(); err != nil {
-		fmt.Println("save sets error:", err)
+		result = multierror.Append(result, errors.Wrap(err, "save config"))
 	}
 	if err := x.comport.Close(); err != nil {
-		fmt.Println("close comport error:", err)
+		result = multierror.Append(result, errors.Wrap(err, "close comport"))
 	}
 	for hWnd := findPeer(); winapp.IsWindow(hWnd); hWnd = findPeer() {
-		win.SendMessage(hWnd, win.WM_CLOSE, 0, 0)
+		if win.SendMessage(hWnd, win.WM_CLOSE, 0, 0) != 0 {
+			result = multierror.Append(result, errors.New("can not close peer window"))
+		}
 	}
+	return
 }
 
 func runPeer() error {
@@ -116,7 +129,7 @@ func runPeer() error {
 		dir = anbus.AppName.Dir()
 	}
 
-	cmd := exec.Command(filepath.Join(dir, peerAppExe), "-must-close-server")
+	cmd := exec.Command(filepath.Join(dir, peerAppExe))
 	cmd.Stdout = os.Stdout
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -158,4 +171,15 @@ func rpcMustRegister(rcvrs ...interface{}) {
 
 func findPeer() win.HWND {
 	return winapp.FindWindow(peerWindowClassName)
+}
+
+func runWindowMessageLoop() {
+	for {
+		var msg win.MSG
+		if win.GetMessage(&msg, 0, 0, 0) == 0 {
+			break
+		}
+		win.TranslateMessage(&msg)
+		win.DispatchMessage(&msg)
+	}
 }

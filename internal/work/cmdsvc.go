@@ -16,9 +16,10 @@ func (x *CmdSvc) Perform(v [1]string, _ *struct{}) error {
 	}
 	switch strings.ToUpper(c.name()) {
 	case "EXIT":
-		if err := x.w.rpcWnd.Close(); err != nil {
-			return errors.Wrap(err, "close window: unexpected error")
+		if !x.w.rpcWnd.CloseWindow() {
+			return errors.New("can not close rpc window")
 		}
+		return nil
 	default:
 		if r, err := c.parseModbusRequest(); err == nil {
 			x.w.chModbusRequest <- r
