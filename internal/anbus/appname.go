@@ -8,3 +8,7 @@ const (
 const (
 	PeerExeName = "anbusui.exe"
 )
+
+func DataFileName() string {
+	return AppName.DataFileName("series.sqlite")
+}

@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"github.com/Microsoft/go-winio"
 	"github.com/fpawel/anbus/internal/anbus"
-	"github.com/fpawel/anbus/internal/svc"
+	"github.com/fpawel/anbus/internal/anbus/svccfg"
+	"github.com/fpawel/anbus/internal/chart"
 	"github.com/fpawel/goutils/copydata"
 	"github.com/fpawel/goutils/serial/comport"
 	"github.com/fpawel/goutils/winapp"
@@ -30,11 +31,14 @@ const (
 
 func Main(mustRunPeer bool) {
 
+	series := chart.NewSeries()
 	x := &worker{
 		sets:            openConfig(),
 		chModbusRequest: make(chan modbusRequest, 10),
 		ln:              mustPipeListener(),
 		rpcWnd:          copydata.NewRPCWindow(anbusServerAppWindowClassName, peerWindowClassName),
+		series:          series,
+		chartSvc:        &ChartSvc{series},
 	}
 
 	if mustRunPeer && !winapp.IsWindow(findPeer()) {
@@ -46,13 +50,10 @@ func Main(mustRunPeer bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	x.comport = comport.NewPort(ctx)
 
-	chartSvc, series := svc.NewChartSvc()
-	x.series = series
-
 	rpcMustRegister(
-		svc.NewSetsSvc(x.sets),
-		&CmdSvc{x},
-		chartSvc)
+		svccfg.NewSetsSvc(x.sets),
+		&MainSvc{x},
+		x.chartSvc)
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)

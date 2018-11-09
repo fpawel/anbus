@@ -1,7 +1,8 @@
-package ser
+package chart
 
 import (
 	"fmt"
+	"github.com/fpawel/anbus/internal/anbus"
 	"github.com/fpawel/anbus/internal/data"
 	"github.com/fpawel/goutils/serial/modbus"
 	"github.com/jmoiron/sqlx"
@@ -10,9 +11,10 @@ import (
 )
 
 type Series struct {
-	db      *sqlx.DB
-	mu      sync.Mutex
-	records []record
+	db       *sqlx.DB
+	mu       sync.Mutex
+	records  []record
+	fileName string
 }
 
 type record struct {
@@ -42,7 +44,14 @@ func OpenFile(fileName string) (*Series, error) {
 		return nil, err
 	}
 
-	return &Series{db: db}, nil
+	return &Series{db: db, fileName: fileName}, nil
+}
+
+func (x *Series) FileName() string {
+	if x.fileName == "" {
+		return anbus.DataFileName()
+	}
+	return x.fileName
 }
 
 func (x *Series) Close() error {

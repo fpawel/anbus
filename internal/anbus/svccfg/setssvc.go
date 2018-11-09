@@ -1,4 +1,4 @@
-package svc
+package svccfg
 
 import (
 	"github.com/fpawel/anbus/internal/anbus"

@@ -16,7 +16,7 @@ type ChartPoint = [10]float64
 const DriverName = "sqlite3"
 
 func MustOpenDB() *sqlx.DB {
-	db := dbutils.MustOpen(anbus.AppName.DataFileName("series.sqlite"), DriverName)
+	db := dbutils.MustOpen(anbus.DataFileName(), DriverName)
 	db.MustExec(SQLCreate)
 	return db
 }
