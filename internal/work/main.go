@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -36,7 +37,7 @@ func Main(mustRunPeer bool) {
 		sets:            openConfig(),
 		chModbusRequest: make(chan modbusRequest, 10),
 		ln:              mustPipeListener(),
-		rpcWnd:          copydata.NewRPCWindow(anbusServerAppWindowClassName, peerWindowClassName),
+		notifyWindow:    copydata.NewNotifyWindow(anbusServerAppWindowClassName, peerWindowClassName),
 		series:          series,
 		chartSvc:        &ChartSvc{series},
 	}
@@ -61,16 +62,16 @@ func Main(mustRunPeer bool) {
 	// цикл rpc
 	go func() {
 		defer wg.Done()
-		defer x.rpcWnd.CloseWindow()
-		count := 0
+		defer x.notifyWindow.CloseWindow()
+		count := int32(0)
 		for {
 			switch conn, err := x.ln.Accept(); err {
 			case nil:
 				go func() {
-					count++
+					atomic.AddInt32(&count, 1)
 					jsonrpc2.ServeConnContext(ctx, conn)
-					if count--; count == 0 && mustRunPeer {
-						x.rpcWnd.CloseWindow()
+					if atomic.AddInt32(&count, -1) == 0 && mustRunPeer {
+						x.notifyWindow.CloseWindow()
 						return
 					}
 				}()

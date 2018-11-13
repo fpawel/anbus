@@ -9,7 +9,7 @@ import (
 )
 
 type worker struct {
-	rpcWnd          *copydata.RPCWindow
+	notifyWindow    *copydata.NotifyWindow
 	comport         *comport.Port
 	sets            *anbus.Sets
 	series          *chart.Series

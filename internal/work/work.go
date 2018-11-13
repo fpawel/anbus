@@ -101,7 +101,7 @@ func (x *worker) doReadVar(va anbus.VarAddr, cfg anbus.Config) (float64, bool) {
 		err = errors.New(err.Error() + ": " + x.comport.Dump())
 	}
 
-	x.rpcWnd.NotifyParam(msgReadVar, struct {
+	x.notifyWindow.NotifyParam(msgReadVar, struct {
 		Place, VarIndex int
 		Value           float64
 		Error           string

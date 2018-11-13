@@ -20,7 +20,7 @@ func (x *MainSvc) PerformTextCommand(v [1]string, _ *struct{}) error {
 	}
 	switch strings.ToUpper(c.name()) {
 	case "EXIT":
-		if !x.w.rpcWnd.CloseWindow() {
+		if !x.w.notifyWindow.CloseWindow() {
 			return errors.New("can not close rpc window")
 		}
 		return nil

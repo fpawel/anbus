@@ -19,7 +19,7 @@ func (x *worker) notifyStatusError(format string, a ...interface{}) {
 }
 
 func (x *worker) notify(level MsgTextLevel, kind MsgTextKind, format string, a ...interface{}) {
-	x.rpcWnd.NotifyParam(msgText, struct {
+	x.notifyWindow.NotifyParam(msgText, struct {
 		Level MsgTextLevel
 		Kind  MsgTextKind
 		Text  string
