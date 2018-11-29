@@ -42,7 +42,7 @@ func Main(mustRunPeer bool) {
 		chartSvc:        &ChartSvc{series},
 	}
 
-	if mustRunPeer && !winapp.IsWindow(findPeer()) {
+	if mustRunPeer && !winapp.IsWindow(FindPeer()) {
 		if err := runPeer(); err != nil {
 			panic(err)
 		}
@@ -113,7 +113,7 @@ func (x *worker) Close() (result error) {
 	if err := x.comport.Close(); err != nil {
 		result = multierror.Append(result, errors.Wrap(err, "close comport"))
 	}
-	for hWnd := findPeer(); winapp.IsWindow(hWnd); hWnd = findPeer() {
+	for hWnd := FindPeer(); winapp.IsWindow(hWnd); hWnd = FindPeer() {
 		if win.SendMessage(hWnd, win.WM_CLOSE, 0, 0) != 0 {
 			result = multierror.Append(result, errors.New("can not close peer window"))
 		}
@@ -171,7 +171,7 @@ func rpcMustRegister(rcvrs ...interface{}) {
 	}
 }
 
-func findPeer() win.HWND {
+func FindPeer() win.HWND {
 	return winapp.FindWindow(peerWindowClassName)
 }
 
