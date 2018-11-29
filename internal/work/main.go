@@ -71,7 +71,6 @@ func Main(mustRunPeer bool) {
 					atomic.AddInt32(&count, 1)
 					jsonrpc2.ServeConnContext(ctx, conn)
 					if atomic.AddInt32(&count, -1) == 0 && mustRunPeer {
-						x.notifyWindow.CloseWindow()
 						return
 					}
 				}()
