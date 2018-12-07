@@ -19,15 +19,17 @@ func (x txtCmd) parseModbusRequest() (modbusRequest, error) {
 		source: x.source,
 	}
 
-	if x.name() == "ALL" {
+	switch x.name() {
+	case "ALL":
 		r.all = true
-	} else {
+	default:
 		if b, err := parseHexByte(x.tokens()[0]); err == nil {
 			r.Addr = modbus.Addr(b)
 		} else {
 			return r, errors.Wrap(err, "адрес модбас")
 		}
 	}
+
 	xs := x.tokens()[1:]
 
 	if len(xs) == 0 {

@@ -13,7 +13,7 @@ func (x *worker) work() {
 	var va anbus.VarAddr
 	for {
 		select {
-		case <-x.comport.Context().Done():
+		case <-x.ctx.Done():
 			return
 		case r := <-x.chModbusRequest:
 			cfg := x.sets.Config()
@@ -50,7 +50,7 @@ func (x *worker) prepareComport(sets anbus.Config) bool {
 	}
 
 	if !x.comport.Opened() {
-		if err := x.comport.Open(sets.Comport); err != nil {
+		if err := x.comport.Open(sets.Comport, x.ctx); err != nil {
 			x.notifyStatusError("%v", err)
 			return false
 		}
@@ -101,7 +101,7 @@ func (x *worker) doReadVar(va anbus.VarAddr, cfg anbus.Config) (float64, bool) {
 		err = errors.New(err.Error() + ": " + x.comport.Dump())
 	}
 
-	x.notifyWindow.NotifyParam(msgReadVar, struct {
+	x.notifyWindow.NotifyJson(msgReadVar, struct {
 		Place, VarIndex int
 		Value           float64
 		Error           string

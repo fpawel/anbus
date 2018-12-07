@@ -40,6 +40,7 @@ func Main(mustRunPeer bool) {
 		notifyWindow:    copydata.NewNotifyWindow(anbusServerAppWindowClassName, peerWindowClassName),
 		series:          series,
 		chartSvc:        &ChartSvc{series},
+		comport:         new(comport.Port),
 	}
 
 	if mustRunPeer && !winapp.IsWindow(FindPeer()) {
@@ -48,8 +49,8 @@ func Main(mustRunPeer bool) {
 		}
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	x.comport = comport.NewPort(ctx)
+	var cancel func()
+	x.ctx, cancel = context.WithCancel(context.Background())
 
 	rpcMustRegister(
 		svccfg.NewSetsSvc(x.sets),
@@ -69,7 +70,7 @@ func Main(mustRunPeer bool) {
 			case nil:
 				go func() {
 					atomic.AddInt32(&count, 1)
-					jsonrpc2.ServeConnContext(ctx, conn)
+					jsonrpc2.ServeConnContext(x.ctx, conn)
 					if atomic.AddInt32(&count, -1) == 0 && mustRunPeer {
 						return
 					}

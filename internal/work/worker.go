@@ -1,6 +1,7 @@
 package work
 
 import (
+	"context"
 	"github.com/fpawel/anbus/internal/anbus"
 	"github.com/fpawel/anbus/internal/chart"
 	"github.com/fpawel/goutils/copydata"
@@ -16,4 +17,5 @@ type worker struct {
 	chModbusRequest chan modbusRequest
 	ln              net.Listener
 	chartSvc        *ChartSvc
+	ctx             context.Context
 }
