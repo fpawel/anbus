@@ -1,4 +1,4 @@
-package work
+package app
 
 import (
 	"github.com/pkg/errors"

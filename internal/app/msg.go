@@ -1,4 +1,4 @@
-package work
+package app
 
 type Msg uintptr
 

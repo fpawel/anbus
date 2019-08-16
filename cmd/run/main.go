@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/fpawel/anbus/internal/anbus"
-	"github.com/fpawel/anbus/internal/work"
+	"github.com/fpawel/anbus/internal/app"
 	"github.com/fpawel/goutils/panichook"
 	"github.com/fpawel/goutils/winapp"
 	"github.com/lxn/win"
@@ -13,7 +13,7 @@ import (
 func main() {
 
 	// Преверяем, не было ли приложение запущено ранее
-	hWndPeer := work.FindPeer()
+	hWndPeer := app.FindPeer()
 	if winapp.IsWindow(hWndPeer) {
 		// Если было, выдвигаем окно приложения на передний план и завершаем процесс
 		win.ShowWindow(hWndPeer, win.SW_RESTORE)

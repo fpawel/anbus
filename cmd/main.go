@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/fpawel/anbus/internal/work"
+	"github.com/fpawel/anbus/internal/app"
 )
 
 func main() {
 	mustRunPeer := true
 	flag.BoolVar(&mustRunPeer, "must-run-peer", true, "ensure peer application")
 	flag.Parse()
-	work.Main(mustRunPeer)
+	app.Main(mustRunPeer)
 }

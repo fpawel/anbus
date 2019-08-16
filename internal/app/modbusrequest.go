@@ -1,21 +1,22 @@
-package work
+package app
 
 import (
-	"github.com/fpawel/goutils/serial/modbus"
+	"github.com/ansel1/merry"
+	"github.com/fpawel/comm/modbus"
 	"github.com/pkg/errors"
 	"strconv"
 	"strings"
 )
 
-type modbusRequest struct {
+type request struct {
 	modbus.Request
 	all    bool
 	source string
 }
 
-func (x txtCmd) parseModbusRequest() (modbusRequest, error) {
+func (x txtCmd) parseRequest() (request, error) {
 
-	r := modbusRequest{
+	r := request{
 		source: x.source,
 	}
 
@@ -45,7 +46,7 @@ func (x txtCmd) parseModbusRequest() (modbusRequest, error) {
 		return r, nil
 	default:
 		if cmdCode, err := parseHexByte(xs[0]); err == nil {
-			r.ProtocolCommandCode = modbus.ProtocolCommandCode(cmdCode)
+			r.ProtoCmd = modbus.ProtoCmd(cmdCode)
 		} else {
 			return r, errors.Wrap(err, "код команды протокола MODBUS RTU")
 		}
@@ -66,17 +67,17 @@ func parseW32(addr modbus.Addr, xs []string) (modbus.Request, error) {
 
 	cmd, err := strconv.Atoi(xs[0])
 	if err != nil {
-		return modbus.Request{}, errors.Wrap(err, "код кодманды")
+		return modbus.Request{}, merry.Append(err, "код кодманды")
 	}
 	if cmd < 0 || cmd > 0xFFFF {
-		return modbus.Request{}, errors.New("код кодманды должен быть от 0 до 0xFFFF")
+		return modbus.Request{}, merry.New("код кодманды должен быть от 0 до 0xFFFF")
 	}
 
 	v, err := strconv.ParseFloat(strings.Replace(xs[1], ",", ".", -1), 64)
 	if err != nil {
-		return modbus.Request{}, errors.Wrap(err, "значение аргумента")
+		return modbus.Request{}, merry.Append(err, "значение аргумента")
 	}
-	return modbus.Write32BCDRequest(addr, 0x010, modbus.DeviceCommandCode(cmd), v), nil
+	return modbus.NewWrite32BCDRequest(addr, 0x010, modbus.DevCmd(cmd), v), nil
 }
 
 func parseHexByte(s string) (uint64, error) {

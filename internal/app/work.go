@@ -1,16 +1,16 @@
-package work
+package app
 
 import (
 	"context"
-	"fmt"
-	"github.com/fpawel/anbus/internal/anbus"
-	"github.com/fpawel/goutils/serial/modbus"
+	"github.com/fpawel/anbus/internal/cfg"
+	"github.com/fpawel/elco/pkg/serial-comm/modbus"
+	"github.com/hako/durafmt"
 	"github.com/pkg/errors"
 	"time"
 )
 
 func (x *worker) work() {
-	var va anbus.VarAddr
+	var va cfg.VarAddr
 	for {
 		select {
 		case <-x.ctx.Done():
@@ -36,21 +36,16 @@ func (x *worker) work() {
 	}
 }
 
-func (x *worker) prepareComport(sets anbus.Config) bool {
+func (x *worker) prepareComport(sets cfg.Config) bool {
 
 	comportConfig := x.comport.Config()
 
-	if comportConfig.Uart != sets.Comport.Uart {
-		x.comport.SetUartConfig(sets.Comport.Uart)
-	}
-	if comportConfig.Serial != sets.Comport.Serial {
-		if err := x.comport.Close(); err != nil {
-			fmt.Println("close COMPORT error:", err)
-		}
+	if comportConfig.Name != sets.ComportName || comportConfig.Baud != sets.ComportBaud {
+		x.comport.Close()
 	}
 
 	if !x.comport.Opened() {
-		if err := x.comport.Open(sets.Comport, x.ctx); err != nil {
+		if err := x.comport.Open(sets.ComportName, sets.ComportBaud); err != nil {
 			x.notifyStatusError("%v", err)
 			return false
 		}
@@ -58,13 +53,19 @@ func (x *worker) prepareComport(sets anbus.Config) bool {
 	return true
 }
 
-func (x *worker) getResponse(r modbusRequest, cfg anbus.Config) {
+func (x *worker) getResponse(r modbusRequest, cfg cfg.Config) {
 
 	doAddr := func() {
-		if _, err := x.comport.GetResponse(r.Bytes()); err == nil {
-			x.notifyConsoleInfo(x.comport.Dump())
+		t := time.Now()
+		if response, err := x.comport.GetResponse(r.Bytes(), x.sets.Config().Comm, context.Background(),
+			func(request []byte, response []byte) error{
+				return nil
+			}); err == nil {
+			x.notifyConsoleInfo( "% X -> % X, %s", r.Bytes(), response,
+				durafmt.Parse(time.Since(t)))
 		} else {
-			x.notifyConsoleError("%s: %v", x.comport.Dump(), err)
+			x.notifyConsoleInfo( "% X : %v, %s", r.Bytes(), err,
+				durafmt.Parse(time.Since(t)))
 		}
 	}
 
@@ -91,7 +92,7 @@ func (x *worker) getResponse(r modbusRequest, cfg anbus.Config) {
 
 }
 
-func (x *worker) doReadVar(va anbus.VarAddr, cfg anbus.Config) (float64, bool) {
+func (x *worker) doReadVar(va cfg.VarAddr, cfg cfg.Config) (float64, bool) {
 
 	value, err := modbus.Read3BCD(x.comport, va.Addr, va.Var)
 	if err == context.DeadlineExceeded {
