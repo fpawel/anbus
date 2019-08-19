@@ -5,3 +5,4 @@ bin
 .idea/
 *.exe
 .idea
+internal/api/notify/api_generated.go

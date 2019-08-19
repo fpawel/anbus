@@ -3,13 +3,16 @@ package app
 import (
 	"context"
 	"github.com/fpawel/anbus/internal"
+	"github.com/fpawel/anbus/internal/cfg"
 	"github.com/fpawel/anbus/internal/peer"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/dseries"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 const (
@@ -44,8 +47,18 @@ func Run() {
 }
 
 var (
-	port           *comport.ReadWriter
-	chRequest      chan modbusRequest
+	comPort = comport.NewReadWriter(func() comport.Config {
+		c := cfg.Get()
+		return comport.Config{
+			Baud:        c.ComportBaud,
+			Name:        c.ComportName,
+			ReadTimeout: time.Millisecond,
+		}
+	}, func() comm.Config {
+		return cfg.Get().Comm
+	})
+
+	chRequest      chan request
 	ctxApp         context.Context
 	cancelWorkFunc = func() {}
 	skipDelayFunc  = func() {}

@@ -1,11 +1,16 @@
 package app
 
 import (
+	"context"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/anbus/internal/api/notify"
+	"github.com/fpawel/anbus/internal/cfg"
 	"github.com/fpawel/comm/modbus"
+	"github.com/fpawel/gohelp/myfmt"
 	"github.com/pkg/errors"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type request struct {
@@ -89,4 +94,39 @@ func parseHexByte(s string) (uint64, error) {
 		return 0, errors.Errorf("%q: ожидалось 8 битное число без знака", s)
 	}
 	return v, nil
+}
+
+func (r request) perform(ctxWork context.Context) {
+	if r.Addr == 0 || !r.all {
+		r.performAddr(ctxWork)
+		return
+	}
+	for _, p := range cfg.Get().Nodes() {
+		r := r
+		r.Addr = p.Addr
+		r.performAddr(ctxWork)
+	}
+	return
+}
+
+func (r request) performAddr(ctx context.Context) {
+	t := time.Now()
+
+	if r.Addr == 0 {
+		if _, err := comPort.Write(log, ctx, r.Bytes()); err != nil {
+			notify.WriteConsoleErrorf(nil, "% X : %v", r.Bytes(), err.Error())
+		} else {
+			notify.WriteConsoleInfof(nil, "% X", r.Bytes())
+		}
+		return
+	}
+	response, err := comPort.GetResponse(log, ctx, r.Bytes(), func(_ []byte, _ []byte) (string, error) {
+		return "", nil
+	})
+	strTime := myfmt.FormatDuration(time.Since(t))
+	if err == nil {
+		notify.WriteConsoleInfof(nil, "% X -> % X %s", r.Bytes(), response, strTime)
+	} else {
+		notify.WriteConsoleErrorf(nil, "% X : %v %s", r.Bytes(), err, strTime)
+	}
 }

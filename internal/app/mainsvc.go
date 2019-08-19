@@ -1,16 +1,10 @@
 package app
 
 import (
-	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/anbus/internal/chart"
-	"github.com/pkg/errors"
-	"io"
-	"os"
-	"strings"
 )
 
-type MainSvc struct {}
+type MainSvc struct{}
 
 func (x *MainSvc) PerformTextCommand(v [1]string, _ *struct{}) error {
 	c, err := parseTxtCmd(v[0])
@@ -24,4 +18,3 @@ func (x *MainSvc) PerformTextCommand(v [1]string, _ *struct{}) error {
 	chRequest <- r
 	return nil
 }
-

@@ -2,22 +2,67 @@ package app
 
 import (
 	"context"
+	"github.com/ansel1/merry"
+	"github.com/fpawel/anbus/internal/api/notify"
 	"github.com/fpawel/anbus/internal/cfg"
-	"github.com/fpawel/elco/pkg/serial-comm/modbus"
+	"github.com/fpawel/comm/comport"
+	"github.com/fpawel/comm/modbus"
+	"github.com/fpawel/gohelp/myfmt"
 	"github.com/hako/durafmt"
 	"github.com/pkg/errors"
+	"sync"
 	"time"
 )
 
-func (x *worker) work() {
-	var va cfg.VarAddr
+func perform() {
+	cancelWorkFunc()
+	wgWork.Wait()
+	wgWork = sync.WaitGroup{}
+	var ctxWork context.Context
+	ctxWork, cancelWorkFunc = context.WithCancel(ctxApp)
+	wgWork.Add(1)
+
+	go func() {
+		defer func() {
+			log.ErrIfFail(comPort.Close)
+			wgWork.Done()
+		}()
+
+
+
+		notify.WorkStarted(log)
+
+		err := work(worker)
+		if err == nil {
+			worker.log.Info("выполнено успешно")
+			notify.WorkComplete(worker.log, api.WorkResult{workName, wrOk, "успешно"})
+			return
+		}
+
+		kvs := merryKeysValues(err)
+		if merry.Is(err, context.Canceled) {
+			worker.log.Warn("выполнение прервано", kvs...)
+			notify.WorkComplete(worker.log, api.WorkResult{workName, wrCanceled, "перервано"})
+			return
+		}
+		worker.log.PrintErr(err, append(kvs, "stack", myfmt.FormatMerryStacktrace(err))...)
+		notify.WorkComplete(worker.log, api.WorkResult{workName, wrError, err.Error()})
+	}()
+}
+
+func work(ctxWork context.Context) error {
+	if err := comPort.Open(log, ctxApp); err != nil {
+		return err
+	}
+	var va cfg.Node
 	for {
 		select {
-		case <-x.ctx.Done():
-			return
-		case r := <-x.chModbusRequest:
-			cfg := x.sets.Config()
-			x.notifyConsoleInfo(r.source)
+		case <-ctxApp.Done():
+			return nil
+		case r := <-chRequest:
+
+			notify.WriteConsole(log, r.source)
+
 			if x.prepareComport(cfg) {
 				x.getResponse(r, cfg)
 				continue
@@ -36,11 +81,11 @@ func (x *worker) work() {
 	}
 }
 
-func (x *worker) prepareComport(sets cfg.Config) bool {
+func prepareComport() bool {
 
-	comportConfig := x.comport.Config()
+	c :=cfg.Get()
 
-	if comportConfig.Name != sets.ComportName || comportConfig.Baud != sets.ComportBaud {
+	if c.ComportName != comPort. || comportConfig.Baud != sets.ComportBaud {
 		x.comport.Close()
 	}
 
@@ -53,48 +98,11 @@ func (x *worker) prepareComport(sets cfg.Config) bool {
 	return true
 }
 
-func (x *worker) getResponse(r modbusRequest, cfg cfg.Config) {
 
-	doAddr := func() {
-		t := time.Now()
-		if response, err := x.comport.GetResponse(r.Bytes(), x.sets.Config().Comm, context.Background(),
-			func(request []byte, response []byte) error{
-				return nil
-			}); err == nil {
-			x.notifyConsoleInfo( "% X -> % X, %s", r.Bytes(), response,
-				durafmt.Parse(time.Since(t)))
-		} else {
-			x.notifyConsoleInfo( "% X : %v, %s", r.Bytes(), err,
-				durafmt.Parse(time.Since(t)))
-		}
-	}
 
-	if r.all {
-		for _, p := range cfg.Places {
-			if !p.Unchecked {
-				r.Addr = p.Addr
-				doAddr()
-			}
-		}
-		return
-	}
+func doReadVar(n cfg.Node, ctxWork context.Context) (float64, bool) {
 
-	if r.Addr > 0 {
-		doAddr()
-		return
-	}
-
-	if _, err := x.comport.Write(r.Bytes()); err != nil {
-		x.notifyConsoleInfo(err.Error())
-	} else {
-		x.notifyConsoleInfo("% X : BROADCAST", r.Bytes())
-	}
-
-}
-
-func (x *worker) doReadVar(va cfg.VarAddr, cfg cfg.Config) (float64, bool) {
-
-	value, err := modbus.Read3BCD(x.comport, va.Addr, va.Var)
+	value, err := modbus.Read3BCD(log, ctxWork, comPort, n.Addr, n.VarCode)
 	if err == context.DeadlineExceeded {
 		err = errors.New("нет ответа")
 	}
