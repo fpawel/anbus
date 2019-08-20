@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/fpawel/anbus/internal/app"
 	"github.com/fpawel/gohelp/must"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
@@ -45,5 +46,5 @@ func main() {
 		SetLogLevel(structlog.ParseLevel(*logLevel))
 
 	must.AbortIf = must.PanicIf
-	must.AbortIf(app.Run())
+	app.Run()
 }

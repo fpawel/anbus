@@ -17,6 +17,8 @@ func startHttpServer() func() {
 	for _, svcObj := range []interface{}{
 		new(api.ConfigSvc),
 		new(dseries.ChartsSvc),
+		&api.TaskSvc{taskRunner{}},
+		&api.PeerSvc{peerNotifier{}},
 	} {
 		must.AbortIf(rpc.Register(svcObj))
 	}
@@ -37,7 +39,7 @@ func startHttpServer() func() {
 	}
 	addr := "http://" + lnHTTP.Addr().String()
 	fmt.Printf("%s/report?party_id=last\n", addr)
-	key, _, err := registry.CreateKey(registry.CURRENT_USER, `mil82\http`, registry.ALL_ACCESS)
+	key, _, err := registry.CreateKey(registry.CURRENT_USER, `anbus\http`, registry.ALL_ACCESS)
 	if err != nil {
 		panic(err)
 	}
@@ -61,5 +63,3 @@ func startHttpServer() func() {
 		}
 	}
 }
-
-

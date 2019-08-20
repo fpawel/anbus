@@ -14,19 +14,18 @@ func main() {
 
 	delphirpc.WriteSources(delphirpc.SrcServices{
 		Dir: filepath.Join(os.Getenv("DELPHIPATH"),
-			"src", "github.com", "fpawel", "anbasui", "api"),
+			"src", "github.com", "fpawel", "anbusgui", "api"),
 		Types: []r.Type{
 			r.TypeOf((*api.ConfigSvc)(nil)),
 			r.TypeOf((*dseries.ChartsSvc)(nil)),
+			r.TypeOf((*api.TaskSvc)(nil)),
+			r.TypeOf((*api.PeerSvc)(nil)),
 		},
 	}, delphirpc.SrcNotify{
 		Dir: filepath.Join(os.Getenv("GOPATH"),
 			"src", "github.com", "fpawel", "anbus", "internal", "api", "notify"),
 		Types: []delphirpc.NotifyServiceType{
-			{
-				"ReadVar",
-				r.TypeOf((*types.ReadVar)(nil)).Elem(),
-			},
+
 			{
 				"WriteConsoleInfo",
 				r.TypeOf((*string)(nil)).Elem(),
@@ -40,16 +39,16 @@ func main() {
 				r.TypeOf((*string)(nil)).Elem(),
 			},
 			{
-				"WorkStarted",
-				r.TypeOf((*struct{})(nil)).Elem(),
-			},
-			{
-				"WorkComplete",
-				r.TypeOf((*struct{})(nil)).Elem(),
-			},
-			{
 				"WorkError",
 				r.TypeOf((*string)(nil)).Elem(),
+			},
+			{
+				"ReadVar",
+				r.TypeOf((*types.ReadVar)(nil)).Elem(),
+			},
+			{
+				"NewSeries",
+				r.TypeOf((*struct{})(nil)).Elem(),
 			},
 		},
 		PeerPackage: "github.com/fpawel/anbus/internal/peer",

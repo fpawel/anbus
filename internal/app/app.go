@@ -11,7 +11,6 @@ import (
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
 	"path/filepath"
-	"sync"
 	"time"
 )
 
@@ -31,6 +30,10 @@ func Run() {
 	ctxApp, cancel = context.WithCancel(context.TODO())
 	closeHttpServer := startHttpServer()
 	peer.Init("")
+
+	// оснавная работа
+	go work()
+
 	// цикл оконных сообщений
 	for {
 		var msg win.MSG
@@ -46,6 +49,16 @@ func Run() {
 	log.ErrIfFail(dseries.Close)
 }
 
+type peerNotifier struct{}
+
+func (_ peerNotifier) OnStarted() {
+	peer.InitPeer()
+}
+
+func (_ peerNotifier) OnClosed() {
+	peer.ResetPeer()
+}
+
 var (
 	comPort = comport.NewReadWriter(func() comport.Config {
 		c := cfg.Get()
@@ -58,10 +71,7 @@ var (
 		return cfg.Get().Comm
 	})
 
-	chRequest      chan request
-	ctxApp         context.Context
-	cancelWorkFunc = func() {}
-	skipDelayFunc  = func() {}
-	wgWork         sync.WaitGroup
-	log            = structlog.New()
+	chTasks = make(chan func(), 1000)
+	ctxApp  context.Context
+	log     = structlog.New()
 )

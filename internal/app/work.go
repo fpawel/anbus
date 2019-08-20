@@ -4,127 +4,83 @@ import (
 	"context"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/anbus/internal/api/notify"
+	"github.com/fpawel/anbus/internal/api/types"
 	"github.com/fpawel/anbus/internal/cfg"
-	"github.com/fpawel/comm/comport"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
-	"github.com/fpawel/gohelp/myfmt"
-	"github.com/hako/durafmt"
-	"github.com/pkg/errors"
-	"sync"
+	"github.com/fpawel/dseries"
 	"time"
 )
 
-func perform() {
-	cancelWorkFunc()
-	wgWork.Wait()
-	wgWork = sync.WaitGroup{}
-	var ctxWork context.Context
-	ctxWork, cancelWorkFunc = context.WithCancel(ctxApp)
-	wgWork.Add(1)
-
-	go func() {
-		defer func() {
-			log.ErrIfFail(comPort.Close)
-			wgWork.Done()
-		}()
-
-
-
-		notify.WorkStarted(log)
-
-		err := work(worker)
-		if err == nil {
-			worker.log.Info("выполнено успешно")
-			notify.WorkComplete(worker.log, api.WorkResult{workName, wrOk, "успешно"})
-			return
-		}
-
-		kvs := merryKeysValues(err)
-		if merry.Is(err, context.Canceled) {
-			worker.log.Warn("выполнение прервано", kvs...)
-			notify.WorkComplete(worker.log, api.WorkResult{workName, wrCanceled, "перервано"})
-			return
-		}
-		worker.log.PrintErr(err, append(kvs, "stack", myfmt.FormatMerryStacktrace(err))...)
-		notify.WorkComplete(worker.log, api.WorkResult{workName, wrError, err.Error()})
-	}()
-}
-
-func work(ctxWork context.Context) error {
-	if err := comPort.Open(log, ctxApp); err != nil {
-		return err
-	}
-	var va cfg.Node
+func work() {
+	var n cfg.Node //сетевой объект опроса
 	for {
 		select {
+
 		case <-ctxApp.Done():
-			return nil
-		case r := <-chRequest:
+			return // работа приложения прервана, выход
 
-			notify.WriteConsole(log, r.source)
+		case task := <-chTasks:
+			task() // выполнить дополнителную задачу
 
-			if x.prepareComport(cfg) {
-				x.getResponse(r, cfg)
-				continue
-			}
 		default:
-			cfg := x.sets.Config()
-			va = cfg.NextVarAddr(va)
-			if va.Place >= 0 && x.prepareComport(cfg) {
-				if v, ok := x.doReadVar(va, cfg); ok && cfg.SaveSeries {
-					x.series.AddRecord(va.Addr, va.Var, v)
-				}
+			// выполние основной работы
+			// вычислить следующий сетевой объект опроса
+			if n = cfg.Get().NextNode(n); n.Place < 0 {
+				// не заданы сетевые объекты опроса
+				pause(time.Second)
 				continue
 			}
+			value, err := modbus.Read3BCD(log, ctxApp, comPort, n.Addr, n.VarCode)
+			if err == nil {
+				processVarValue(n, value)
+				continue
+			}
+			if merry.Is(err, context.Canceled) {
+				return // работа приложения прервана, выход
+			}
+			if isDeviceError(err) {
+				// произошла ошибка протокола либо ответ от данного адреса не был получен
+				notify.ReadVar(log, types.ReadVar{
+					Place:    n.Place,
+					VarIndex: n.VarIndex,
+					Value:    value,
+					Error:    err.Error(),
+				})
+				continue
+			}
+			// произошёла ошибка СОМ порта
+			notify.WorkError(log, err.Error())
+			pause(time.Second)
 		}
-		time.Sleep(time.Second)
 	}
 }
 
-func prepareComport() bool {
-
-	c :=cfg.Get()
-
-	if c.ComportName != comPort. || comportConfig.Baud != sets.ComportBaud {
-		x.comport.Close()
-	}
-
-	if !x.comport.Opened() {
-		if err := x.comport.Open(sets.ComportName, sets.ComportBaud); err != nil {
-			x.notifyStatusError("%v", err)
-			return false
-		}
-	}
-	return true
+func isDeviceError(err error) bool {
+	return merry.Is(err, comm.Err) || merry.Is(err, context.DeadlineExceeded)
 }
 
-
-
-func doReadVar(n cfg.Node, ctxWork context.Context) (float64, bool) {
-
-	value, err := modbus.Read3BCD(log, ctxWork, comPort, n.Addr, n.VarCode)
-	if err == context.DeadlineExceeded {
-		err = errors.New("нет ответа")
+func processVarValue(n cfg.Node, value float64) {
+	// считано новое значение, отправить оповещение о нём
+	notify.ReadVar(log, types.ReadVar{Place: n.Place, VarIndex: n.VarIndex, Value: value})
+	// если предыдущее сохранённое значение было сохранено более 5 минут назад,
+	// создать новую пачку графиков
+	if time.Since(dseries.UpdatedAt()) > time.Minute*5 {
+		dseries.CreateNewBucket("anbus")
 	}
-	if err != nil {
-		err = errors.New(err.Error() + ": " + x.comport.Dump())
-	}
+	// сохранить новое значение в базе данных графиков
+	dseries.AddPoint(n.Addr, n.VarCode, value)
+}
 
-	x.notifyWindow.NotifyJson(msgReadVar, struct {
-		Place, VarIndex int
-		Value           float64
-		Error           string
-	}{
-		va.Place, va.VarIndex, value, fmtErr(err),
-	})
-
-	if cfg.DumpComport {
-		s := time.Now().Format("15:04:05.000")
-		if err == nil {
-			x.notifyConsoleInfo("%s %s %v", s, x.comport.Dump(), value)
-		} else {
-			x.notifyConsoleError("%s %v", s, err)
+func pause(d time.Duration) {
+	timer := time.NewTimer(d)
+	for {
+		select {
+		case <-timer.C:
+			return
+		case <-ctxApp.Done():
+			timer.Stop()
+			return
 		}
 	}
-	return value, err == nil
 }

@@ -16,6 +16,7 @@ import (
 type Config struct {
 	ConfigNetwork
 	ConfigEditable
+	VarsList []Var `toml:"vars_list" comment:"наименования каналов"`
 }
 
 type ConfigEditable struct {
@@ -40,6 +41,11 @@ type DevVar struct {
 	Check bool
 }
 
+type Var struct {
+	Code modbus.Var `toml:"code" comment:"номер канала"`
+	Name string     `toml:"name" comment:"наименование канала"`
+}
+
 type Node struct {
 	Place    int
 	Addr     modbus.Addr
@@ -48,7 +54,8 @@ type Node struct {
 }
 
 func (x ConfigNetwork) ToggleChecked() {
-	f := len(x.Nodes()) > 0
+	nodes := x.Nodes()
+	f := len(nodes) > 0
 	for i := range x.Places {
 		x.Places[i].Check = !f
 	}
@@ -79,7 +86,7 @@ func (x ConfigNetwork) Nodes() (xs []Node) {
 			if !v.Check {
 				continue
 			}
-			xs = append(xs, Node{place, a.Addr, v.Code, varIndex,})
+			xs = append(xs, Node{place, a.Addr, v.Code, varIndex})
 		}
 	}
 	return
@@ -140,8 +147,7 @@ var (
 			},
 			ConfigNetwork: ConfigNetwork{
 				Places: []Place{{Addr: 1, Check: true}},
-				Vars: []DevVar{{Code: 0, Check: false,
-				}},
+				Vars:   []DevVar{{Code: 0, Check: false}},
 			},
 		}
 		b, err := ioutil.ReadFile(fileName())

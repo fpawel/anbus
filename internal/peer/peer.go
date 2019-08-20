@@ -14,7 +14,7 @@ import (
 
 const (
 	ServerWindowClassName = "AnbusServerWindow"
-	WindowClassName       = "TMainFormAnbus"
+	WindowClassName       = "TAnbusMainForm"
 )
 
 func Notifyf(msg uintptr, format string, a ...interface{}) {
@@ -76,10 +76,10 @@ func AssertRunOnce() {
 	// Преверяем, не было ли приложение запущено ранее.
 	// Если было, выдвигаем окно UI приложения на передний план и завершаем процесс.
 	if winapp.IsWindow(winapp.FindWindow(ServerWindowClassName)) {
-		if hWnd := winapp.FindWindow(WindowClassName); winapp.IsWindow(hWnd){
+		if hWnd := winapp.FindWindow(WindowClassName); winapp.IsWindow(hWnd) {
 			win.ShowWindow(hWnd, win.SW_RESTORE)
 			win.SetForegroundWindow(hWnd)
-		} else{
+		} else {
 			show()
 		}
 		log.Fatal("anbus.exe already executing")
@@ -128,7 +128,7 @@ func Init(serverWindowClassNameSuffix string) {
 }
 
 func show() {
-	if err := exec.Command(filepath.Join(filepath.Dir(os.Args[0]), "mil82gui.exe")).Start(); err != nil {
+	if err := exec.Command(filepath.Join(filepath.Dir(os.Args[0]), "anbusgui.exe")).Start(); err != nil {
 		panic(err)
 	}
 }

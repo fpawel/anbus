@@ -43,7 +43,7 @@ func (_ *ConfigSvc) ToggleNetwork(_ struct{}, r *cfg.ConfigNetwork) error {
 
 func (_ *ConfigSvc) ToggleVar(v [1]int, _ *struct{}) error {
 	c := cfg.Get()
-	c.Vars[v[0]].Check =  !c.Vars[v[0]].Check
+	c.Vars[v[0]].Check = !c.Vars[v[0]].Check
 	cfg.Set(c)
 	return nil
 }
@@ -112,5 +112,13 @@ func (x *ConfigSvc) SetEditConfig(s [1]string, r *string) error {
 	}
 	*r = string(b)
 	cfg.Set(c)
+	return nil
+}
+
+func (_ *ConfigSvc) Vars(_ struct{}, vars *[]cfg.Var) error {
+	*vars = cfg.Get().VarsList
+	if len(*vars) == 0 {
+		*vars = []cfg.Var{}
+	}
 	return nil
 }
