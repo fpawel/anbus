@@ -1,10 +1,15 @@
 package types
 
+import "github.com/fpawel/comm/modbus"
+
 type ReadVar struct {
-	Place,
+	Place    int
 	VarIndex int
-	Value float64
-	Error string
+	VarCode  modbus.Var
+	Addr     modbus.Addr
+	VarName  string
+	Value    float64
+	Error    string
 }
 
 type EmptyRecord struct{}

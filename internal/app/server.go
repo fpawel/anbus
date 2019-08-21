@@ -15,10 +15,9 @@ import (
 func startHttpServer() func() {
 
 	for _, svcObj := range []interface{}{
-		new(api.ConfigSvc),
+		&api.ConfigSvc{chConfigChanged},
 		new(dseries.ChartsSvc),
 		&api.TaskSvc{taskRunner{}},
-		&api.PeerSvc{peerNotifier{}},
 	} {
 		must.AbortIf(rpc.Register(svcObj))
 	}

@@ -19,7 +19,6 @@ func main() {
 			r.TypeOf((*api.ConfigSvc)(nil)),
 			r.TypeOf((*dseries.ChartsSvc)(nil)),
 			r.TypeOf((*api.TaskSvc)(nil)),
-			r.TypeOf((*api.PeerSvc)(nil)),
 		},
 	}, delphirpc.SrcNotify{
 		Dir: filepath.Join(os.Getenv("GOPATH"),
@@ -51,7 +50,8 @@ func main() {
 				r.TypeOf((*struct{})(nil)).Elem(),
 			},
 		},
-		PeerPackage: "github.com/fpawel/anbus/internal/peer",
+		PeerWindowClassName:   "TAnbusMainForm",
+		ServerWindowClassName: "AnbusServerWindow",
 	})
 
 }

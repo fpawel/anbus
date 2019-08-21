@@ -6,7 +6,24 @@ import (
 	"github.com/pelletier/go-toml"
 )
 
-type ConfigSvc struct{}
+type ConfigSvc struct {
+	ChChanged chan<- struct{}
+}
+
+func (_ *ConfigSvc) ComportName(_ struct{}, r *string) error {
+	*r = cfg.Get().ComportName
+	return nil
+}
+
+func (x *ConfigSvc) SetComportName(s [1]string, _ *struct{}) error {
+	c := cfg.Get()
+	c.ComportName = s[0]
+	cfg.Set(c)
+	go func() {
+		x.ChChanged <- struct{}{}
+	}()
+	return nil
+}
 
 func (_ *ConfigSvc) Network(_ struct{}, r *cfg.ConfigNetwork) error {
 	*r = cfg.Get().ConfigNetwork

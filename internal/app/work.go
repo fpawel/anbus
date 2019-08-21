@@ -17,6 +17,9 @@ func work() {
 	for {
 		select {
 
+		case <-chConfigChanged:
+			log.ErrIfFail(comPort.Close)
+
 		case <-ctxApp.Done():
 			return // работа приложения прервана, выход
 
@@ -24,16 +27,35 @@ func work() {
 			task() // выполнить дополнителную задачу
 
 		default:
+			config := cfg.Get()
 			// выполние основной работы
 			// вычислить следующий сетевой объект опроса
-			if n = cfg.Get().NextNode(n); n.Place < 0 {
+			if n = config.NextNode(n); n.Place < 0 {
 				// не заданы сетевые объекты опроса
 				pause(time.Second)
 				continue
 			}
-			value, err := modbus.Read3BCD(log, ctxApp, comPort, n.Addr, n.VarCode)
+			r := types.ReadVar{
+				Place:    n.Place,
+				VarIndex: n.VarIndex,
+				VarCode:  n.VarCode,
+				Addr:     n.Addr,
+				VarName:  config.VarNameByCode(n.VarCode),
+			}
+			var err error
+
+			r.Value, err = modbus.Read3BCD(log, ctxApp, comPort, n.Addr, n.VarCode)
 			if err == nil {
-				processVarValue(n, value)
+				// считано новое значение, отправить оповещение о нём
+				notify.ReadVar(nil, r)
+				// если предыдущее сохранённое значение было сохранено более 5 минут назад,
+				// создать новую пачку графиков
+				if time.Since(dseries.UpdatedAt()) > time.Minute*5 {
+					dseries.CreateNewBucket("anbus")
+					notify.NewSeries(log.Info)
+				}
+				// сохранить новое значение в базе данных графиков
+				dseries.AddPoint(n.Addr, n.VarCode, r.Value)
 				continue
 			}
 			if merry.Is(err, context.Canceled) {
@@ -41,16 +63,12 @@ func work() {
 			}
 			if isDeviceError(err) {
 				// произошла ошибка протокола либо ответ от данного адреса не был получен
-				notify.ReadVar(log, types.ReadVar{
-					Place:    n.Place,
-					VarIndex: n.VarIndex,
-					Value:    value,
-					Error:    err.Error(),
-				})
+				r.Error = err.Error()
+				go notify.ReadVar(nil, r)
 				continue
 			}
 			// произошёла ошибка СОМ порта
-			notify.WorkError(log, err.Error())
+			notify.WorkError(log.PrintErr, err.Error())
 			pause(time.Second)
 		}
 	}
@@ -58,18 +76,6 @@ func work() {
 
 func isDeviceError(err error) bool {
 	return merry.Is(err, comm.Err) || merry.Is(err, context.DeadlineExceeded)
-}
-
-func processVarValue(n cfg.Node, value float64) {
-	// считано новое значение, отправить оповещение о нём
-	notify.ReadVar(log, types.ReadVar{Place: n.Place, VarIndex: n.VarIndex, Value: value})
-	// если предыдущее сохранённое значение было сохранено более 5 минут назад,
-	// создать новую пачку графиков
-	if time.Since(dseries.UpdatedAt()) > time.Minute*5 {
-		dseries.CreateNewBucket("anbus")
-	}
-	// сохранить новое значение в базе данных графиков
-	dseries.AddPoint(n.Addr, n.VarCode, value)
 }
 
 func pause(d time.Duration) {

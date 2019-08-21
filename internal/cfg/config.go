@@ -53,6 +53,15 @@ type Node struct {
 	VarIndex int
 }
 
+func (x Config) VarNameByCode(varCode modbus.Var) string {
+	for _, Var := range x.VarsList {
+		if Var.Code == varCode {
+			return Var.Name
+		}
+	}
+	return fmt.Sprintf("var%d", varCode)
+}
+
 func (x ConfigNetwork) ToggleChecked() {
 	nodes := x.Nodes()
 	f := len(nodes) > 0
@@ -155,7 +164,7 @@ var (
 			fmt.Println(err)
 			return
 		}
-		if err = json.Unmarshal(b, &c); err == nil {
+		if err = json.Unmarshal(b, &c); err != nil {
 			fmt.Println(err)
 			return
 		}
