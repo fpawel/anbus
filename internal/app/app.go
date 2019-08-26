@@ -2,12 +2,11 @@ package app
 
 import (
 	"context"
-	"github.com/fpawel/anbus/internal"
 	"github.com/fpawel/anbus/internal/api/notify"
 	"github.com/fpawel/anbus/internal/cfg"
+	"github.com/fpawel/anbus/internal/dseries"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/comport"
-	"github.com/fpawel/dseries"
 	"github.com/fpawel/gohelp/winapp"
 	"github.com/hako/durafmt"
 	"github.com/lxn/win"
@@ -29,7 +28,6 @@ func Run() {
 		log.Fatal("mil82.exe already executing")
 	}
 
-	dseries.Open(filepath.Join(internal.DataDir(), "series.sqlite"))
 	log.Info("updated at", "time", dseries.UpdatedAt(), "elapsed", durafmt.Parse(time.Since(dseries.UpdatedAt())))
 
 	var cancel func()
